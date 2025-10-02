@@ -9,10 +9,10 @@ Welcome to the resources repo for [Saturdata](https://saturdata.github.io), your
 - Python 3.11 or higher
 - [Git](https://git-scm.com/)
   - Install [here](https://git-scm.com/downloads)
-- [GitHub CLI](https://cli.github.com/)
-  - Install with `brew install gh`
 - [uv](https://docs.astral.sh/uv/)
   - Install with `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Optional: [GitHub CLI](https://cli.github.com/)
+  - Install with `brew install gh`
 
 ### Setup
 
@@ -20,6 +20,11 @@ Welcome to the resources repo for [Saturdata](https://saturdata.github.io), your
    ```bash
    gh repo clone saturdata/resources
    cd resources
+   ```
+
+   or, if you don't have the GitHub CLI:
+   ```bash
+   git clone https://github.com/saturdata/resources.git
    ```
 
 1. Install dependencies and run the [Marimo](https://marimo.io/) notebook:
