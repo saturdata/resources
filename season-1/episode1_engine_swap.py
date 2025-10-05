@@ -182,6 +182,7 @@ def _(df_pd, pl, time):
         _dur_vec = time.perf_counter() - _t0
 
         # Polars expression
+        # Shif: Talk about lazy vs. eager and when you should force a Polars behavior there
         _lf_expr = pl.from_pandas(_df_small).lazy()
         _t0 = time.perf_counter()
         _ = _lf_expr.with_columns((pl.col("price") * pl.col("quantity")).alias("revenue")).collect()
@@ -206,7 +207,9 @@ def _(csv_path, pl):
     # Toggle to showcase pushdown effects
     filter_on = True
 
-    # Build lazy pipeline
+    # Shif: SQL order of execution
+
+    # Build lazy pipeline; eager has no query planning. Move select above with_columns to see what happens
     _lf_plan = (
         pl.scan_csv(csv_path)
         .with_columns([
@@ -237,6 +240,7 @@ def _(mo):
 @app.cell
 def _(csv_path, pd, pl, product_cat, time):
     # Helper: pandas pipeline
+    # TODO: Comment and space out more
     def run_pandas(use_pyarrow: bool) -> tuple[float, "pd.DataFrame"]:
         read_kwargs = dict(parse_dates=["date"]) if not use_pyarrow else dict(parse_dates=["date"], engine="pyarrow", dtype_backend="pyarrow")
         t0 = time.perf_counter()
@@ -365,13 +369,13 @@ def _(Path):
 @app.cell
 def _(pd, pl, time, tlc_files):
     # Benchmark: read Parquet and count rows; compare pandas vs polars
-    def _safe_sum_pd(df, cols):
+    def _safe_sum_pd(df, cols) -> float:
         for c in cols:
             if c in df.columns:
                 return float(df[c].sum())
         return float("nan")
 
-    def _safe_sum_pl(df, cols):
+    def _safe_sum_pl(df, cols) -> float:
         for c in cols:
             if c in df.columns:
                 return float(df.select(pl.col(c).sum()).item())
@@ -428,11 +432,6 @@ def _(pd, pl, time, tlc_files):
 
 
 @app.cell
-def _():
-    return
-
-
-@app.cell
 def _(mo):
     mo.md(r"""## High‑signal aggregation benchmark (where Polars shines)""")
     return
@@ -476,7 +475,7 @@ def _(pd, pl, time, tlc_files):
             .agg([
                 pl.col("fare_amount").sum().alias("total_fare"),
                 pl.col("trip_distance").mean().alias("avg_distance"),
-                pl.count().alias("rides"),
+                pl.len().alias("rides"),
             ])
             .sort("total_fare", descending=True)
             .head(10)
@@ -510,11 +509,6 @@ def _(pd, pl, time, tlc_files):
     print(_score)
     print("\nPolars result head (CPU):")
     print(_pl_cpu)
-    return
-
-
-@app.cell
-def _():
     return
 
 
