@@ -6,7 +6,7 @@ Analytic Basics in Python - Marimo Notebook
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.16.5"
 app = marimo.App(width="medium")
 
 
@@ -28,6 +28,17 @@ def _(mo):
     - Statistical tests
     - Tabular data operations
     - Data types in pandas and polars
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## TODO
+    - Add `plotly` examples
     """
     )
     return
@@ -366,6 +377,8 @@ def _(mo):
     The Shapiro-Wilk test assesses whether a dataset follows a normal (Gaussian) distribution by comparing the observed data to what would be expected from a perfect normal distribution. The test statistic W ranges from 0 to 1, where values closer to 1 indicate better normality.
 
     Our W = 0.978 suggests the data is very close to normal, and with p = 0.085 (above α = 0.05), we fail to reject the null hypothesis that the data is normally distributed. This means we can reasonably assume the dataset follows a normal distribution for subsequent statistical analyses that require this assumption.
+
+    In the real world, we basically always assume normality and never check ML assumptions because these are the only tools we have, and your data almost always won't pass tests like this.
     """
     )
     return
@@ -530,7 +543,6 @@ def _(plt, viz_data_pd):
 
     print("Notice: Regular matplotlib plots now have seaborn's clean aesthetic!")
     print("Benefits: Better colors, nicer grid, improved fonts, professional look")
-
     return
 
 
@@ -569,7 +581,6 @@ def _(business_data, pl):
     ])
     print("Business Data Summary:")
     print(summary)
-
     return
 
 
@@ -699,7 +710,7 @@ def _(np, pl, plt, sns, stats):
         else:
             pd_df = data_df
             pl_df = pl.from_pandas(data_df)
-    
+
         # NumPy statistics
         values = pl_df[numeric_col].to_numpy()
         np_stats = {
@@ -708,32 +719,32 @@ def _(np, pl, plt, sns, stats):
             'std': np.std(values),
             'skew': stats.skew(values)
         }
-    
+
         # Polars group analysis
         group_stats = pl_df.group_by(category_col).agg([
             pl.col(numeric_col).mean().alias('group_mean'),
             pl.col(numeric_col).count().alias('group_count')
         ])
-    
+
         # SciPy statistical tests
         groups = [group[numeric_col].to_numpy() for name, group in pd_df.groupby(category_col)]
         if len(groups) >= 2:
             f_stat, anova_p = stats.f_oneway(*groups)
         else:
             f_stat, anova_p = None, None
-    
+
         # Seaborn visualization
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    
+
         sns.boxplot(data=pd_df, x=category_col, y=numeric_col, ax=axes[0])
         axes[0].set_title(f'{numeric_col} by {category_col}')
-    
+
         sns.histplot(data=pd_df, x=numeric_col, hue=category_col, ax=axes[1])
         axes[1].set_title(f'{numeric_col} Distribution')
-    
+
         plt.tight_layout()
         plt.show()
-    
+
         # Return results
         return {
             'numpy_stats': np_stats,
@@ -842,7 +853,7 @@ def _(mo):
     - Subplot layouts for comprehensive reporting
     - **Takeaway**: Combine libraries strategically - each has strengths for different parts of the analysis pipeline
 
-    ###  Hypothesis yesting
+    ###  Hypothesis testing
     - Complete A/B test example with control and treatment groups
     - Descriptive statistics for both groups
     - T-test with p-values and effect sizes (Cohen's d)
