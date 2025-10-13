@@ -27,9 +27,9 @@ Welcome to the resources repo for [Saturdata](https://saturdata.github.io), your
    git clone https://github.com/saturdata/resources.git
    ```
 
-1. Install dependencies and run the [Marimo](https://marimo.io/) notebook:
+1. Install dependencies and run the [Marimo](https://marimo.io/) notebooks:
    ```bash
-   uv run marimo run season-1/analytics_basics.py
+   uv run marimo run season-1/sql/resource.py
    ```
 
 That's it! The `uv run` command will automatically:
