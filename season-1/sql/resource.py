@@ -59,9 +59,16 @@ def _(duckdb, mo):
     # Create in-memory DuckDB connection
     conn = duckdb.connect(":memory:")
 
-    # Create SQL helper function that wraps mo.sql with our connection
+    # Create SQL helper function that executes queries and returns results
     def sql(query):
-        return mo.sql(query, connection=conn)
+        result_df = conn.execute(query).df()
+
+        # Create a simple object with a 'value' attribute for compatibility
+        class SQLResult:
+            def __init__(self, df):
+                self.value = df
+
+        return SQLResult(result_df)
 
     # Test connection
     test_result = conn.execute("SELECT 'DuckDB connection successful!' as status").df()
@@ -625,7 +632,7 @@ def _(mo, sql):
                 WHEN transaction_count >= 10 THEN 'Low Value High Frequency'
                 ELSE 'Low Value Low Frequency'
             END as customer_segment,
-            DATE_PART('day', last_purchase_date - first_purchase_date) as customer_lifespan_days
+            (last_purchase_date - first_purchase_date) as customer_lifespan_days
         FROM customer_metrics
     ),
     segment_analysis AS (
@@ -650,7 +657,7 @@ def _(mo, sql):
         total_segment_revenue,
         ROUND(total_segment_revenue / SUM(total_segment_revenue) OVER () * 100, 1) as revenue_percentage
     FROM segment_analysis
-    ORDER BY total_segment_revenue DESC;
+    ORDER BY total_segment_revenue DESC
     """)
 
     _display = [
@@ -801,7 +808,7 @@ def _(mo):
 
 
 @app.cell
-def _(conn, mo, sql):
+def _(mo, sql):
     """
     ### EXPLAIN - CTE Approach
     """
@@ -841,7 +848,7 @@ def _(conn, mo, sql):
     _display = [
         mo.md("""
         **📊 CTE Query Execution Plan:**
-        
+
         This shows how DuckDB executes the CTE-based query with multiple transformation steps.
         """),
         mo.ui.table(explain_cte_result.value),
@@ -882,7 +889,7 @@ def _(conn, mo):
     _display = [
         mo.md("""
         **📊 Subquery Execution Plan:**
-        
+
         This shows the execution plan for the equivalent subquery-based approach.
         """),
         mo.ui.table(explain_subquery_df),
@@ -906,7 +913,7 @@ def _(mo):
     - The optimizer may "flatten" CTEs into subqueries internally for better performance
 
     **Optimal Plan Characteristics:**
-    
+
     1. **Efficient Scan Methods**
        - ✅ **Index Scan**: Fast when filtering on indexed columns
        - ⚠️ **Sequential Scan**: Acceptable for small-medium tables or when filtering many rows
@@ -1019,23 +1026,23 @@ def _(conn, mo):
     _display = [
         mo.md(f"""
         **⏱️ Performance Timing Comparison:**
-        
+
         - **CTE Approach**: {cte_time * 1000:.3f} ms
         - **Subquery Approach**: {subquery_time * 1000:.3f} ms
         - **Difference**: {abs(cte_time - subquery_time) * 1000:.3f} ms
         - **Winner**: {"CTE" if cte_time < subquery_time else "Subquery"} (by {abs((cte_time - subquery_time) / max(cte_time, subquery_time) * 100):.1f}%)
         - **Results Match**: {"✅ Yes" if perf_results_match else "❌ No"}
-        
+
         **📊 Results:**
         """),
         mo.ui.table(cte_perf_result.head(5)),
         mo.md("""
-        
+
         **💡 Key Takeaway:**
         The performance difference is typically **negligible** for queries of this complexity.
         Both approaches complete in milliseconds. Focus on **code maintainability** 
         and **team readability** rather than micro-optimizations at this scale.
-        
+
         **When to Actually Optimize:**
         - Queries taking > 1 second on production data
         - Frequently executed queries (thousands of times per day)
@@ -1043,7 +1050,7 @@ def _(conn, mo):
         - Real-time/user-facing queries where latency matters
         """),
     ]
-    return (perf_results_match,)
+    return
 
 
 @app.cell
@@ -1260,11 +1267,8 @@ def _(mo, sql):
     gap_analysis_result = sql("""
     -- Find gaps in daily transaction data
     WITH date_range AS (
-        SELECT CAST(generate_series(
-            DATE '2024-01-01',
-            DATE '2024-12-31', 
-            INTERVAL '1 day'
-        ) AS DATE) as expected_date
+        SELECT DATE '2024-01-01' + (n || ' days')::INTERVAL as expected_date
+        FROM generate_series(0, 365) as t(n)
     ),
     actual_transaction_dates AS (
         SELECT DISTINCT date as transaction_date
@@ -1642,7 +1646,8 @@ def _(conn, mo, sql):
         total_transactions,
         total_spent,
         avg_transaction_amount,
-        favorite_region
+        favorite_region,
+        last_updated
     )
     SELECT 
         customer_id,
@@ -1657,7 +1662,8 @@ def _(conn, mo, sql):
          WHERE t2.customer_id = t1.customer_id 
          GROUP BY region 
          ORDER BY COUNT(*) DESC 
-         LIMIT 1) as favorite_region
+         LIMIT 1) as favorite_region,
+        CURRENT_TIMESTAMP as last_updated
     FROM transactions t1
     GROUP BY customer_id
     ON CONFLICT (customer_id) 
@@ -1668,7 +1674,7 @@ def _(conn, mo, sql):
         total_spent = EXCLUDED.total_spent,
         avg_transaction_amount = EXCLUDED.avg_transaction_amount,
         favorite_region = EXCLUDED.favorite_region,
-        last_updated = CURRENT_TIMESTAMP;
+        last_updated = EXCLUDED.last_updated;
     """
 
     # Execute the upsert
@@ -1968,7 +1974,7 @@ def _(mo):
 
 
 @app.cell
-def _(conn, mo, sql):
+def _(mo, sql):
     """
     ### Query Execution Analysis
     """
@@ -2011,7 +2017,7 @@ def _(conn, mo, sql):
             END as frequency_segment,
 
             -- Customer lifetime in days
-            EXTRACT(DAY FROM (last_purchase - first_purchase)) as customer_lifetime_days,
+            (last_purchase - first_purchase) as customer_lifetime_days,
 
             -- Promotion usage rate
             ROUND(promo_transactions * 100.0 / transaction_count, 1) as promo_usage_rate
@@ -2051,7 +2057,7 @@ def _(conn, mo, sql):
         ROUND(total_segment_revenue * 100.0 / SUM(total_segment_revenue) OVER (), 2) as pct_of_revenue
 
     FROM segment_analysis
-    ORDER BY total_segment_revenue DESC;
+    ORDER BY total_segment_revenue DESC
     """
 
     # Execute the complex query
@@ -2156,7 +2162,7 @@ def _(mo):
 
 
 @app.cell
-def _(complex_query, conn, mo, sql):
+def _(complex_query, mo, sql):
     """
     ### Debugging Complex Queries - Step-by-Step Approach
     """
