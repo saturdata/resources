@@ -36,7 +36,7 @@ def _():
     Setting up all required libraries for our SQL learning environment.
     """
     import marimo as mo
-    import pandas as pd
+    import polars as pl
     import duckdb
     import pyarrow.parquet as pq
     import warnings
@@ -44,7 +44,7 @@ def _():
     warnings.filterwarnings("ignore")
 
     mo.md("✅ **Environment Setup Complete**")
-    return duckdb, mo, pd, pq
+    return duckdb, mo, pl, pq
 
 
 @app.cell
@@ -73,7 +73,7 @@ def _(duckdb, mo):
     test_result = conn.execute("SELECT 'DuckDB connection successful!' as status").df()
 
     mo.md(f"""
-    **Database Connection Status:** {test_result.iloc[0, 0]}
+    **Database Connection Status:** {test_result.loc[0, "status"]}
 
     🎯 **Why DuckDB?**
     - In-memory processing (no setup required)
@@ -85,20 +85,22 @@ def _(duckdb, mo):
 
 
 @app.cell
-def _(conn, mo, pd, sql):
+def _(conn, mo, pl, sql):
     """
     ## Data Loading - Transaction Data
 
     Loading the synthetic transaction data with customer purchases, regions, and promo codes.
     """
     # Load transaction data from CSV
-    transactions_df = pd.read_csv("season-1/data/transactions_synthetic.csv")
+    transactions_df = pl.read_csv("season-1/data/transactions_synthetic.csv")
 
     # Convert date column to proper date type
-    transactions_df["date"] = pd.to_datetime(transactions_df["date"]).dt.date
+    transactions_df = transactions_df.with_columns(
+        pl.col("date").str.to_date().alias("date")
+    )
 
-    # Register with DuckDB
-    conn.register("transactions", transactions_df)
+    # Register with DuckDB (convert to pandas for DuckDB compatibility)
+    conn.register("transactions", transactions_df.to_pandas())
 
     # Display schema and sample data
     schema_result = sql("DESCRIBE transactions;")
@@ -115,9 +117,9 @@ def _(conn, mo, pd, sql):
         **Dataset Overview:**
         - **Records:** {len(transactions_df):,}
         - **Date Range:** {transactions_df["date"].min()} to {transactions_df["date"].max()}
-        - **Customers:** {transactions_df["customer_id"].nunique():,} unique
-        - **Products:** {transactions_df["product_id"].nunique():,} unique
-        - **Regions:** {", ".join(sorted(transactions_df["region"].unique()))}
+        - **Customers:** {transactions_df["customer_id"].n_unique():,} unique
+        - **Products:** {transactions_df["product_id"].n_unique():,} unique
+        - **Regions:** {", ".join(sorted(transactions_df["region"].unique().to_list()))}
 
         **Schema:**
         """),
@@ -175,7 +177,7 @@ def _(conn, mo, pq, sql):
 
         **Schema (Key Columns):**
         """),
-        mo.ui.table(taxi_schema_result.value.head(10)),  # Show first 10 columns
+        mo.ui.table(taxi_schema_result.value.iloc[:10]),  # Show first 10 columns
     ]
     return (taxi_summary_result,)
 
@@ -318,7 +320,7 @@ def _(mo, sql):
         mo.md("""
         **📈 Running Calculations and Moving Averages:**
         """),
-        mo.ui.table(window_agg_result.value.head(15)),
+        mo.ui.table(window_agg_result.value.iloc[:15]),
         mo.md(f"""
 
         **Dataset Overview:**
@@ -631,7 +633,7 @@ def _(mo, sql):
                 WHEN transaction_count >= 10 THEN 'Low Value High Frequency'
                 ELSE 'Low Value Low Frequency'
             END as customer_segment,
-            (last_purchase_date - first_purchase_date) as customer_lifespan_days
+            DATEDIFF('day', first_purchase_date, last_purchase_date) as customer_lifespan_days
         FROM customer_metrics
     ),
     segment_analysis AS (
@@ -1034,7 +1036,7 @@ def _(conn, mo):
 
         **📊 Results:**
         """),
-        mo.ui.table(cte_perf_result.head(5)),
+        mo.ui.table(cte_perf_result.iloc[:5]),
         mo.md("""
 
         **💡 Key Takeaway:**
@@ -1294,7 +1296,7 @@ def _(mo, sql):
         END as day_of_week,
 
         -- How many days since last transaction?
-        missing_date - LAG(missing_date, 1) OVER (ORDER BY missing_date) as days_since_prev_gap
+        DATEDIFF('day', LAG(missing_date, 1) OVER (ORDER BY missing_date), missing_date) as days_since_prev_gap
 
     FROM missing_dates
     ORDER BY missing_date
@@ -1366,7 +1368,7 @@ def _(mo, sql):
         avg_daily_revenue,
         total_island_transactions,
         -- Calculate days between islands
-        island_start - LAG(island_end, 1) OVER (ORDER BY island_start) - 1 as days_between_islands
+        DATEDIFF('day', LAG(island_end, 1) OVER (ORDER BY island_start), island_start) - 1 as days_between_islands
     FROM islands
     WHERE consecutive_days >= 3  -- Only show islands of 3+ consecutive days
     ORDER BY island_start;
@@ -1554,7 +1556,7 @@ def _(mo, sql):
         mo.md("""
         **🚕 Taxi Usage Patterns - Hourly Analysis:**
         """),
-        mo.ui.table(taxi_patterns_result.value.head(20)),
+        mo.ui.table(taxi_patterns_result.value.iloc[:20]),
         mo.md(f"""
 
         **Total Records Analyzed:** {len(taxi_patterns_result.value)} hour-daytype combinations
@@ -2016,7 +2018,7 @@ def _(mo, sql):
             END as frequency_segment,
 
             -- Customer lifetime in days
-            (last_purchase - first_purchase) as customer_lifetime_days,
+            DATEDIFF('day', first_purchase, last_purchase) as customer_lifetime_days,
 
             -- Promotion usage rate
             ROUND(promo_transactions * 100.0 / transaction_count, 1) as promo_usage_rate
@@ -2066,7 +2068,7 @@ def _(mo, sql):
         mo.md("""
         **📊 Complex Customer Segmentation Analysis Results:**
         """),
-        mo.ui.table(performance_result.value.head(15)),
+        mo.ui.table(performance_result.value.iloc[:15]),
         mo.md(f"""
 
         **Query Complexity Analysis:**
