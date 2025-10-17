@@ -8,10 +8,9 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         r"""
-    # SQL for Data People - Interactive Learning Environment
+    # SQL for Data People
 
-    Welcome to the comprehensive SQL learning environment! This notebook provides hands-on,
-    executable examples of advanced PostgreSQL concepts using real transaction and NYC taxi data.
+    This notebook provides hands-on, executable examples of advanced PostgreSQL concepts using real transaction and NYC taxi data.
 
     ## Learning Path
     1. **Setup and Data Loading** - Initialize environment and load datasets
@@ -80,7 +79,7 @@ def _(duckdb, mo):
     - In-memory processing (no setup required)
     - Full SQL support including window functions
     - Excellent performance for analytical queries
-    - Native support for Parquet files
+    - More on this in a future episode!
     """)
     return conn, sql
 
