@@ -12,6 +12,8 @@ def _(mo):
 
     This notebook provides hands-on, executable examples of advanced PostgreSQL concepts using real transaction and NYC taxi data.
 
+    **📚 Reference:** This notebook follows marimo's SQL integration pattern. For more details, see the [DuckDB marimo guide](https://duckdb.org/docs/stable/guides/python/marimo).
+
     ## Learning Path
     1. **Setup and Data Loading** - Initialize environment and load datasets
     2. **Window Functions** - Ranking, aggregation, and analytical functions
@@ -54,20 +56,11 @@ def _(duckdb, mo):
 
     Creating an in-memory DuckDB connection for SQL execution.
     No external database required!
+
+    marimo will automatically discover this connection and use it with mo.sql()
     """
     # Create in-memory DuckDB connection
     conn = duckdb.connect(":memory:")
-
-    # Create SQL helper function that executes queries and returns results
-    def sql(query):
-        result_df = conn.execute(query).df()
-
-        # Create a simple object with a 'value' attribute for compatibility
-        class SQLResult:
-            def __init__(self, df):
-                self.value = df
-
-        return SQLResult(result_df)
 
     # Test connection
     test_result = conn.execute("SELECT 'DuckDB connection successful!' as status").df()
@@ -80,58 +73,75 @@ def _(duckdb, mo):
     - Full SQL support including window functions
     - Excellent performance for analytical queries
     - More on this in a future episode!
+
+    💡 **Using `mo.sql()`:**
+    - marimo automatically discovers the `conn` variable
+    - Use `mo.sql(f"...")` to execute queries with f-string interpolation
+    - Results have a `.value` attribute containing the dataframe
     """)
-    return conn, sql
+    return (conn,)
 
 
 @app.cell
-def _(conn, mo, pl, sql):
+def _(mo, pl):
     """
     ## Data Loading - Transaction Data
 
     Loading the synthetic transaction data with customer purchases, regions, and promo codes.
     """
     # Load transaction data from CSV
-    transactions_df = pl.read_csv("season-1/data/transactions_synthetic.csv")
+    transactions = pl.read_csv("season-1/data/transactions_synthetic.csv")
 
     # Convert date column to proper date type
-    transactions_df = transactions_df.with_columns(
-        pl.col("date").str.to_date().alias("date")
-    )
+    transactions = transactions.with_columns(pl.col("date").str.to_date().alias("date"))
 
-    # Register with DuckDB (convert to pandas for DuckDB compatibility)
-    conn.register("transactions", transactions_df.to_pandas())
+    mo.md(f"""
+    **📊 Transaction Data Loaded Successfully!**
 
-    # Display schema and sample data
-    schema_result = sql("DESCRIBE transactions;")
-    sample_result = sql("""
-        SELECT * FROM transactions 
-        ORDER BY date 
-        LIMIT 10;
+    **Dataset Overview:**
+    - **Records:** {len(transactions):,}
+    - **Date Range:** {transactions["date"].min()} to {transactions["date"].max()}
+    - **Customers:** {transactions["customer_id"].n_unique():,} unique
+    - **Products:** {transactions["product_id"].n_unique():,} unique
+    - **Regions:** {", ".join(sorted(transactions["region"].unique().to_list()))}
     """)
-
-    _display = [
-        mo.md(f"""
-        **📊 Transaction Data Loaded Successfully!**
-
-        **Dataset Overview:**
-        - **Records:** {len(transactions_df):,}
-        - **Date Range:** {transactions_df["date"].min()} to {transactions_df["date"].max()}
-        - **Customers:** {transactions_df["customer_id"].n_unique():,} unique
-        - **Products:** {transactions_df["product_id"].n_unique():,} unique
-        - **Regions:** {", ".join(sorted(transactions_df["region"].unique().to_list()))}
-
-        **Schema:**
-        """),
-        mo.ui.table(schema_result.value),
-        mo.md("**Sample Data:**"),
-        mo.ui.table(sample_result.value),
-    ]
-    return (transactions_df,)
+    return (transactions,)
 
 
 @app.cell
-def _(conn, mo, pq, sql):
+def _(mo):
+    mo.md("""**Schema:**""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Display transaction schema"""
+    _transactions_schema = mo.sql(f"DESCRIBE transactions")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""**Sample Data:**""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Display sample transaction data"""
+    _transactions_sample = mo.sql(
+        f"""
+        SELECT * FROM transactions 
+        ORDER BY date 
+        LIMIT 10
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, pl, pq):
     """
     ## Data Loading - NYC Taxi Data
 
@@ -141,21 +151,34 @@ def _(conn, mo, pq, sql):
     taxi_jan = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-01.parquet")
     taxi_feb = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-02.parquet")
 
-    # Register with DuckDB
-    conn.register("taxi_jan", taxi_jan)
-    conn.register("taxi_feb", taxi_feb)
+    # Convert to Polars for easier handling (optional, DuckDB can read PyArrow directly)
+    taxi_jan_pl = pl.from_arrow(taxi_jan)
+    taxi_feb_pl = pl.from_arrow(taxi_feb)
 
-    # Create unified view
-    conn.execute("""
-    CREATE OR REPLACE VIEW taxi_data AS
-    SELECT * FROM taxi_jan
-    UNION ALL
-    SELECT * FROM taxi_feb;
+    mo.md("""
+    **🚕 NYC Taxi Data Loaded Successfully!**
+
+    Two months of NYC Yellow Taxi data loaded (January and February 2024)
     """)
+    return taxi_feb, taxi_jan
 
-    # Display schema and summary statistics
-    taxi_schema_result = sql("DESCRIBE taxi_data;")
-    taxi_summary_result = sql("""
+
+@app.cell
+def _(mo):
+    mo.md("""**Dataset Overview:**""")
+    return
+
+
+@app.cell
+def _(mo, taxi_feb, taxi_jan):
+    """Unified taxi data summary statistics"""
+    _taxi_summary = mo.sql(
+        f"""
+        WITH taxi_data AS (
+            SELECT * FROM taxi_jan
+            UNION ALL
+            SELECT * FROM taxi_feb
+        )
         SELECT 
             COUNT(*) as total_trips,
             MIN(DATE(tpep_pickup_datetime)) as earliest_date,
@@ -163,23 +186,10 @@ def _(conn, mo, pq, sql):
             ROUND(AVG(fare_amount), 2) as avg_fare,
             ROUND(AVG(trip_distance), 2) as avg_distance,
             COUNT(DISTINCT DATE(tpep_pickup_datetime)) as unique_days
-        FROM taxi_data;
-    """)
-
-    _display = [
-        mo.md("""
-        **🚕 NYC Taxi Data Loaded Successfully!**
-
-        **Dataset Overview:**
-        """),
-        mo.ui.table(taxi_summary_result.value),
-        mo.md("""
-
-        **Schema (Key Columns):**
-        """),
-        mo.ui.table(taxi_schema_result.value.iloc[:10]),  # Show first 10 columns
-    ]
-    return (taxi_summary_result,)
+        FROM taxi_data
+        """
+    )
+    return
 
 
 @app.cell
@@ -198,206 +208,236 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
+def _(mo):
+    mo.md(
+        """
     ### ROW_NUMBER() - Sequential Numbering
-    """
-    row_number_result = sql("""
-    SELECT 
-        date,
-        customer_id,
-        region,
-        price * quantity as transaction_amount,
-        ROW_NUMBER() OVER (PARTITION BY region ORDER BY date) as row_num_by_region,
-        ROW_NUMBER() OVER (ORDER BY price * quantity DESC) as row_num_by_amount
-    FROM transactions
-    WHERE date >= '2024-01-01' AND date <= '2024-01-31'  -- January only
-    ORDER BY region, date
-    LIMIT 15;
-    """)
 
-    _display = [
-        mo.md("""
-        **ROW_NUMBER()** assigns unique sequential integers to rows within partitions:
-        """),
-        mo.ui.table(row_number_result.value),
-        mo.md("""
-        💡 **Key Insights:**
-        - `row_num_by_region`: Sequential numbering within each region by date
-        - `row_num_by_amount`: Overall ranking by transaction amount (highest first)
-        - Notice how each row gets a unique number even for tied values
-        """),
-    ]
-    return
-
-
-@app.cell
-def _(mo, sql):
+    **ROW_NUMBER()** assigns unique sequential integers to rows within partitions:
     """
-    ### RANK() vs DENSE_RANK() - Handling Ties
-    """
-    ranking_result = sql("""
-    WITH customer_spending AS (
-        SELECT 
-            customer_id,
-            SUM(price * quantity) as total_spent,
-            COUNT(*) as transaction_count
-        FROM transactions
-        GROUP BY customer_id
     )
-    SELECT 
-        customer_id,
-        total_spent,
-        transaction_count,
-        RANK() OVER (ORDER BY total_spent DESC) as rank_with_gaps,
-        DENSE_RANK() OVER (ORDER BY total_spent DESC) as dense_rank,
-        NTILE(5) OVER (ORDER BY total_spent DESC) as quintile
-    FROM customer_spending
-    ORDER BY total_spent DESC
-    LIMIT 20;
-    """)
-
-    _display = [
-        mo.md("""
-        **Ranking Functions Comparison:**
-        """),
-        mo.ui.table(ranking_result.value),
-        mo.md("""
-        🎯 **Understanding the Differences:**
-        - **RANK()**: Leaves gaps after tied values (1, 2, 2, 4, 5...)
-        - **DENSE_RANK()**: No gaps after tied values (1, 2, 2, 3, 4...)
-        - **NTILE(5)**: Divides data into 5 equal-sized groups (quintiles)
-        """),
-    ]
     return
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Window Aggregations - Running Totals and Moving Averages
-    """
-    window_agg_result = sql("""
-    WITH daily_sales AS (
+def _(mo, transactions):
+    """ROW_NUMBER window function example"""
+    _row_number_result = mo.sql(
+        f"""
         SELECT 
             date,
-            SUM(price * quantity) as daily_revenue,
-            COUNT(*) as daily_transactions,
-            COUNT(DISTINCT customer_id) as unique_customers
+            customer_id,
+            region,
+            price * quantity as transaction_amount,
+            ROW_NUMBER() OVER (PARTITION BY region ORDER BY date) as row_num_by_region,
+            ROW_NUMBER() OVER (ORDER BY price * quantity DESC) as row_num_by_amount
         FROM transactions
-        WHERE date BETWEEN '2024-01-01' AND '2024-02-28'  -- Jan-Feb
-        GROUP BY date
-        ORDER BY date
+        WHERE date >= '2024-01-01' AND date <= '2024-01-31'  -- January only
+        ORDER BY region, date
+        LIMIT 15
+        """
     )
-    SELECT 
-        date,
-        daily_revenue,
-        daily_transactions,
-        unique_customers,
-        -- Running totals
-        SUM(daily_revenue) OVER (ORDER BY date ROWS UNBOUNDED PRECEDING) as cumulative_revenue,
-        SUM(daily_transactions) OVER (ORDER BY date ROWS UNBOUNDED PRECEDING) as cumulative_transactions,
-
-        -- Moving averages (7-day window)
-        ROUND(
-            AVG(daily_revenue) OVER (
-                ORDER BY date 
-                ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-            ), 2
-        ) as seven_day_avg_revenue,
-
-        ROUND(
-            AVG(daily_transactions) OVER (
-                ORDER BY date 
-                ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-            ), 2
-        ) as seven_day_avg_transactions
-    FROM daily_sales
-    ORDER BY date;
-    """)
-
-    _display = [
-        mo.md("""
-        **📈 Running Calculations and Moving Averages:**
-        """),
-        mo.ui.table(window_agg_result.value.iloc[:15]),
-        mo.md(f"""
-
-        **Dataset Overview:**
-        - **Total Days:** {len(window_agg_result.value)}
-        - **Total Revenue:** ${window_agg_result.value["cumulative_revenue"].iloc[-1]:,.2f}
-        - **Average Daily Revenue:** ${window_agg_result.value["daily_revenue"].mean():,.2f}
-
-        🔍 **Window Frame Explanation:**
-        - `ROWS UNBOUNDED PRECEDING`: From start to current row (running total)
-        - `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`: 7-day moving window
-        """),
-    ]
     return
 
 
 @app.cell
-def _(mo, sql):
+def _(mo):
+    mo.md(
+        """
+    💡 **Key Insights:**
+    - `row_num_by_region`: Sequential numbering within each region by date
+    - `row_num_by_amount`: Overall ranking by transaction amount (highest first)
+    - Notice how each row gets a unique number even for tied values
     """
-    ### LAG() and LEAD() - Accessing Previous/Next Values
-    """
-    lag_lead_result = sql("""
-    WITH monthly_metrics AS (
-        SELECT 
-            DATE_TRUNC('month', date) as month,
-            SUM(price * quantity) as monthly_revenue,
-            COUNT(*) as monthly_transactions,
-            COUNT(DISTINCT customer_id) as unique_customers_per_month
-        FROM transactions
-        GROUP BY DATE_TRUNC('month', date)
-        ORDER BY month
     )
-    SELECT 
-        month,
-        monthly_revenue,
-        monthly_transactions,
-        unique_customers_per_month,
+    return
 
-        -- Previous month comparisons
-        LAG(monthly_revenue, 1) OVER (ORDER BY month) as prev_month_revenue,
-        monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY month) as revenue_change,
 
-        ROUND(
-            (monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY month)) / 
-            NULLIF(LAG(monthly_revenue, 1) OVER (ORDER BY month), 0) * 100, 
-            2
-        ) as revenue_change_pct,
+@app.cell
+def _(mo):
+    mo.md("""### RANK() vs DENSE_RANK() - Handling Ties""")
+    return
 
-        -- Next month preview
-        LEAD(monthly_revenue, 1) OVER (ORDER BY month) as next_month_revenue,
 
-        -- First and last values in the dataset
-        FIRST_VALUE(monthly_revenue) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as first_month_revenue,
-        LAST_VALUE(monthly_revenue) OVER (ORDER BY month ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as last_month_revenue
+@app.cell
+def _(mo, transactions):
+    """Ranking functions comparison"""
+    _ranking_result = mo.sql(
+        f"""
+        WITH customer_spending AS (
+            SELECT 
+                customer_id,
+                SUM(price * quantity) as total_spent,
+                COUNT(*) as transaction_count
+            FROM transactions
+            GROUP BY customer_id
+        )
+        SELECT 
+            customer_id,
+            total_spent,
+            transaction_count,
+            RANK() OVER (ORDER BY total_spent DESC) as rank_with_gaps,
+            DENSE_RANK() OVER (ORDER BY total_spent DESC) as dense_rank,
+            NTILE(5) OVER (ORDER BY total_spent DESC) as quintile
+        FROM customer_spending
+        ORDER BY total_spent DESC
+        LIMIT 20
+        """
+    )
+    return
 
-    FROM monthly_metrics
-    ORDER BY month;
-    """)
 
-    _display = [
-        mo.md("""
-        **📊 Time Series Analysis with LAG/LEAD:**
-        """),
-        mo.ui.table(lag_lead_result.value),
-        mo.md("""
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    🎯 **Understanding the Differences:**
+    - **RANK()**: Leaves gaps after tied values (1, 2, 2, 4, 5...)
+    - **DENSE_RANK()**: No gaps after tied values (1, 2, 2, 3, 4...)
+    - **NTILE(5)**: Divides data into 5 equal-sized groups (quintiles)
+    """
+    )
+    return
 
-        💡 **Advanced Window Functions:**
-        - **LAG(column, 1)**: Previous row value (great for month-over-month analysis)
-        - **LEAD(column, 1)**: Next row value (forecasting context)
-        - **FIRST_VALUE()**: First value in the window (baseline comparison)
-        - **LAST_VALUE()**: Last value in the window (endpoint comparison)
 
-        🎯 **Business Insights:**
-        - Track month-over-month growth rates
-        - Compare current performance to baseline (first month)
-        - Identify trends and seasonality patterns
-        """),
-    ]
+@app.cell
+def _(mo):
+    mo.md("""### Window Aggregations - Running Totals and Moving Averages""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Running totals and moving averages"""
+    window_agg_result = mo.sql(
+        f"""
+        WITH daily_sales AS (
+            SELECT 
+                date,
+                SUM(price * quantity) as daily_revenue,
+                COUNT(*) as daily_transactions,
+                COUNT(DISTINCT customer_id) as unique_customers
+            FROM transactions
+            WHERE date BETWEEN '2024-01-01' AND '2024-02-28'  -- Jan-Feb
+            GROUP BY date
+            ORDER BY date
+        )
+        SELECT 
+            date,
+            daily_revenue,
+            daily_transactions,
+            unique_customers,
+            -- Running totals
+            SUM(daily_revenue) OVER (ORDER BY date ROWS UNBOUNDED PRECEDING) as cumulative_revenue,
+            SUM(daily_transactions) OVER (ORDER BY date ROWS UNBOUNDED PRECEDING) as cumulative_transactions,
+
+            -- Moving averages (7-day window)
+            ROUND(
+                AVG(daily_revenue) OVER (
+                    ORDER BY date 
+                    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+                ), 2
+            ) as seven_day_avg_revenue,
+
+            ROUND(
+                AVG(daily_transactions) OVER (
+                    ORDER BY date 
+                    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+                ), 2
+            ) as seven_day_avg_transactions
+        FROM daily_sales
+        ORDER BY date
+        """
+    )
+    return (window_agg_result,)
+
+
+@app.cell
+def _(mo, window_agg_result):
+    mo.md(
+        f"""
+    **📈 Running Calculations and Moving Averages Results:**
+
+    **Dataset Overview:**
+    - **Total Days:** {len(window_agg_result.value)}
+    - **Total Revenue:** ${window_agg_result.value["cumulative_revenue"].iloc[-1]:,.2f}
+    - **Average Daily Revenue:** ${window_agg_result.value["daily_revenue"].mean():,.2f}
+
+    🔍 **Window Frame Explanation:**
+    - `ROWS UNBOUNDED PRECEDING`: From start to current row (running total)
+    - `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`: 7-day moving window
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""### LAG() and LEAD() - Accessing Previous/Next Values""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Time series analysis with LAG and LEAD"""
+    _lag_lead_result = mo.sql(
+        f"""
+        WITH monthly_metrics AS (
+            SELECT 
+                DATE_TRUNC('month', date) as month,
+                SUM(price * quantity) as monthly_revenue,
+                COUNT(*) as monthly_transactions,
+                COUNT(DISTINCT customer_id) as unique_customers_per_month
+            FROM transactions
+            GROUP BY DATE_TRUNC('month', date)
+            ORDER BY month
+        )
+        SELECT 
+            month,
+            monthly_revenue,
+            monthly_transactions,
+            unique_customers_per_month,
+
+            -- Previous month comparisons
+            LAG(monthly_revenue, 1) OVER (ORDER BY month) as prev_month_revenue,
+            monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY month) as revenue_change,
+
+            ROUND(
+                (monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY month)) / 
+                NULLIF(LAG(monthly_revenue, 1) OVER (ORDER BY month), 0) * 100, 
+                2
+            ) as revenue_change_pct,
+
+            -- Next month preview
+            LEAD(monthly_revenue, 1) OVER (ORDER BY month) as next_month_revenue,
+
+            -- First and last values in the dataset
+            FIRST_VALUE(monthly_revenue) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as first_month_revenue,
+            LAST_VALUE(monthly_revenue) OVER (ORDER BY month ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as last_month_revenue
+
+        FROM monthly_metrics
+        ORDER BY month
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    💡 **Advanced Window Functions:**
+    - **LAG(column, 1)**: Previous row value (great for month-over-month analysis)
+    - **LEAD(column, 1)**: Next row value (forecasting context)
+    - **FIRST_VALUE()**: First value in the window (baseline comparison)
+    - **LAST_VALUE()**: Last value in the window (endpoint comparison)
+
+    🎯 **Business Insights:**
+    - Track month-over-month growth rates
+    - Compare current performance to baseline (first month)
+    - Identify trends and seasonality patterns
+    """
+    )
     return
 
 
@@ -417,175 +457,185 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### QUALIFY Clause - Filtering Window Function Results
+def _(mo):
+    mo.md("""### QUALIFY Clause - Filtering Window Function Results""")
+    return
 
-    Note: DuckDB supports QUALIFY clause, which allows filtering on window function results.
-    """
-    qualify_result = sql("""
-    -- Top 3 customers by spending in each region using QUALIFY
-    WITH customer_regional_spending AS (
+
+@app.cell
+def _(mo, transactions):
+    """Top 3 customers by spending in each region using QUALIFY"""
+    _qualify_result = mo.sql(
+        f"""
+        WITH customer_regional_spending AS (
+            SELECT 
+                customer_id,
+                region,
+                SUM(price * quantity) as total_spent,
+                COUNT(*) as transaction_count,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_amount
+            FROM transactions
+            GROUP BY customer_id, region
+        )
         SELECT 
             customer_id,
             region,
-            SUM(price * quantity) as total_spent,
-            COUNT(*) as transaction_count,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_amount
-        FROM transactions
-        GROUP BY customer_id, region
+            total_spent,
+            transaction_count,
+            avg_transaction_amount,
+            RANK() OVER (PARTITION BY region ORDER BY total_spent DESC) as region_rank
+        FROM customer_regional_spending
+        QUALIFY RANK() OVER (PARTITION BY region ORDER BY total_spent DESC) <= 3
+        ORDER BY region, total_spent DESC
+        """
     )
-    SELECT 
-        customer_id,
-        region,
-        total_spent,
-        transaction_count,
-        avg_transaction_amount,
-        RANK() OVER (PARTITION BY region ORDER BY total_spent DESC) as region_rank
-    FROM customer_regional_spending
-    QUALIFY RANK() OVER (PARTITION BY region ORDER BY total_spent DESC) <= 3
-    ORDER BY region, total_spent DESC;
-    """)
-
-    _display = [
-        mo.md("""
-        **🎯 QUALIFY Clause in Action:**
-        """),
-        mo.ui.table(qualify_result.value),
-        mo.md("""
-
-        **Why QUALIFY is Powerful:**
-        - ✅ Can filter directly on window function results
-        - ✅ More readable than subqueries for this use case
-        - ✅ Executes after window functions are computed
-
-        **Traditional Alternative (without QUALIFY):**
-        ```sql
-        SELECT * FROM (
-            SELECT *, RANK() OVER (...) as rank
-            FROM table
-        ) ranked
-        WHERE rank <= 3;
-        ```
-        """),
-    ]
     return
 
 
 @app.cell
-def _(mo, sql):
+def _(mo):
+    mo.md(
+        """
+    **Why QUALIFY is Powerful:**
+    - ✅ Can filter directly on window function results
+    - ✅ More readable than subqueries for this use case
+    - ✅ Executes after window functions are computed
+
+    **Traditional Alternative (without QUALIFY):**
+    ```sql
+    SELECT * FROM (
+        SELECT *, RANK() OVER (...) as rank
+        FROM table
+    ) ranked
+    WHERE rank <= 3;
+    ```
     """
-    ### FILTER Clause - Conditional Aggregations
-    """
-    filter_clause_result = sql("""
-    -- Analyze promo code effectiveness by region
-    SELECT 
-        region,
-        COUNT(*) as total_transactions,
-
-        -- Count transactions by promo code
-        COUNT(*) FILTER (WHERE promo_code = 'PROMO10') as promo10_count,
-        COUNT(*) FILTER (WHERE promo_code = 'PROMO20') as promo20_count,
-        COUNT(*) FILTER (WHERE promo_code = 'PROMO30') as promo30_count,
-        COUNT(*) FILTER (WHERE promo_code IS NULL) as no_promo_count,
-
-        -- Average prices by promo type
-        ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO10'), 2) as avg_price_promo10,
-        ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO20'), 2) as avg_price_promo20,
-        ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO30'), 2) as avg_price_promo30,
-        ROUND(AVG(price) FILTER (WHERE promo_code IS NULL), 2) as avg_price_no_promo,
-
-        -- Total revenue by promo type
-        ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO10'), 2) as revenue_promo10,
-        ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO20'), 2) as revenue_promo20,
-        ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO30'), 2) as revenue_promo30
-
-    FROM transactions
-    GROUP BY region
-    ORDER BY total_transactions DESC;
-    """)
-
-    _display = [
-        mo.md("""
-        **📈 FILTER Clause for Conditional Aggregations:**
-        """),
-        mo.ui.table(filter_clause_result.value),
-        mo.md("""
-
-        **💡 FILTER Clause Benefits:**
-        - **Single Query**: Calculate multiple conditional metrics in one pass
-        - **Performance**: More efficient than multiple subqueries
-        - **Readability**: Clear intent with explicit conditions
-
-        **Business Insights:**
-        - Compare promo code effectiveness across regions
-        - Identify which promotions drive higher average prices
-        - Analyze revenue distribution by promotion type
-        """),
-    ]
+    )
     return
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Statistical Functions with WITHIN GROUP
-    """
-    stats_result = sql("""
-    -- Comprehensive statistical analysis by region
-    WITH transaction_amounts AS (
+def _(mo):
+    mo.md("""### FILTER Clause - Conditional Aggregations""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Analyze promo code effectiveness by region"""
+    _filter_clause_result = mo.sql(
+        f"""
         SELECT 
             region,
-            price * quantity as amount
+            COUNT(*) as total_transactions,
+
+            -- Count transactions by promo code
+            COUNT(*) FILTER (WHERE promo_code = 'PROMO10') as promo10_count,
+            COUNT(*) FILTER (WHERE promo_code = 'PROMO20') as promo20_count,
+            COUNT(*) FILTER (WHERE promo_code = 'PROMO30') as promo30_count,
+            COUNT(*) FILTER (WHERE promo_code IS NULL) as no_promo_count,
+
+            -- Average prices by promo type
+            ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO10'), 2) as avg_price_promo10,
+            ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO20'), 2) as avg_price_promo20,
+            ROUND(AVG(price) FILTER (WHERE promo_code = 'PROMO30'), 2) as avg_price_promo30,
+            ROUND(AVG(price) FILTER (WHERE promo_code IS NULL), 2) as avg_price_no_promo,
+
+            -- Total revenue by promo type
+            ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO10'), 2) as revenue_promo10,
+            ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO20'), 2) as revenue_promo20,
+            ROUND(SUM(price * quantity) FILTER (WHERE promo_code = 'PROMO30'), 2) as revenue_promo30
+
         FROM transactions
-        WHERE date >= '2024-01-01'
+        GROUP BY region
+        ORDER BY total_transactions DESC
+        """
     )
-    SELECT 
-        region,
-        COUNT(*) as transaction_count,
+    return
 
-        -- Central tendency
-        ROUND(AVG(amount), 2) as mean_amount,
-        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount), 2) as median_amount,
 
-        -- Quartiles
-        ROUND(PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY amount), 2) as q1_amount,
-        ROUND(PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY amount), 2) as q3_amount,
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **💡 FILTER Clause Benefits:**
+    - **Single Query**: Calculate multiple conditional metrics in one pass
+    - **Performance**: More efficient than multiple subqueries
+    - **Readability**: Clear intent with explicit conditions
 
-        -- Spread measures  
-        ROUND(STDDEV(amount), 2) as std_deviation,
-        ROUND(MAX(amount) - MIN(amount), 2) as range_amount,
+    **Business Insights:**
+    - Compare promo code effectiveness across regions
+    - Identify which promotions drive higher average prices
+    - Analyze revenue distribution by promotion type
+    """
+    )
+    return
 
-        -- Extreme values
-        ROUND(MIN(amount), 2) as min_amount,
-        ROUND(MAX(amount), 2) as max_amount,
-        ROUND(PERCENTILE_CONT(0.01) WITHIN GROUP (ORDER BY amount), 2) as p1_amount,
-        ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY amount), 2) as p99_amount
 
-    FROM transaction_amounts
-    GROUP BY region
-    ORDER BY median_amount DESC;
-    """)
+@app.cell
+def _(mo):
+    mo.md("""### Statistical Functions with WITHIN GROUP""")
+    return
 
-    _display = [
-        mo.md("""
-        **📊 Statistical Analysis with WITHIN GROUP:**
-        """),
-        mo.ui.table(stats_result.value),
-        mo.md("""
 
-        **🎯 Statistical Functions Explained:**
-        - **PERCENTILE_CONT(0.5)**: Continuous percentile (median)
-        - **WITHIN GROUP (ORDER BY ...)**: Specifies ordering for percentile calculations
-        - **Quartiles (Q1, Q3)**: 25th and 75th percentiles for outlier detection
-        - **P1, P99**: 1st and 99th percentiles to identify extreme values
+@app.cell
+def _(mo, transactions):
+    """Comprehensive statistical analysis by region"""
+    _stats_result = mo.sql(
+        f"""
+        WITH transaction_amounts AS (
+            SELECT 
+                region,
+                price * quantity as amount
+            FROM transactions
+            WHERE date >= '2024-01-01'
+        )
+        SELECT 
+            region,
+            COUNT(*) as transaction_count,
 
-        **Business Applications:**
-        - **Outlier Detection**: Use IQR (Q3 - Q1) * 1.5 rule
-        - **Regional Comparison**: Compare distributions across regions
-        - **Pricing Strategy**: Understand transaction amount patterns
-        """),
-    ]
+            -- Central tendency
+            ROUND(AVG(amount), 2) as mean_amount,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount), 2) as median_amount,
+
+            -- Quartiles
+            ROUND(PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY amount), 2) as q1_amount,
+            ROUND(PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY amount), 2) as q3_amount,
+
+            -- Spread measures  
+            ROUND(STDDEV(amount), 2) as std_deviation,
+            ROUND(MAX(amount) - MIN(amount), 2) as range_amount,
+
+            -- Extreme values
+            ROUND(MIN(amount), 2) as min_amount,
+            ROUND(MAX(amount), 2) as max_amount,
+            ROUND(PERCENTILE_CONT(0.01) WITHIN GROUP (ORDER BY amount), 2) as p1_amount,
+            ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY amount), 2) as p99_amount
+
+        FROM transaction_amounts
+        GROUP BY region
+        ORDER BY median_amount DESC
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **🎯 Statistical Functions Explained:**
+    - **PERCENTILE_CONT(0.5)**: Continuous percentile (median)
+    - **WITHIN GROUP (ORDER BY ...)**: Specifies ordering for percentile calculations
+    - **Quartiles (Q1, Q3)**: 25th and 75th percentiles for outlier detection
+    - **P1, P99**: 1st and 99th percentiles to identify extreme values
+
+    **Business Applications:**
+    - **Outlier Detection**: Use IQR (Q3 - Q1) * 1.5 rule
+    - **Regional Comparison**: Compare distributions across regions
+    - **Pricing Strategy**: Understand transaction amount patterns
+    """
+    )
     return
 
 
@@ -605,142 +655,150 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### CTE Approach - Complex Multi-Step Analysis
-    """
-    cte_result = sql("""
-    -- CTE approach: Clear, readable multi-step analysis
-    WITH customer_metrics AS (
-        -- Step 1: Calculate basic customer metrics
-        SELECT 
-            customer_id,
-            COUNT(*) as transaction_count,
-            SUM(price * quantity) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_value,
-            MIN(date) as first_purchase_date,
-            MAX(date) as last_purchase_date
-        FROM transactions
-        GROUP BY customer_id
-    ),
-    customer_segments AS (
-        -- Step 2: Segment customers based on spending and frequency
-        SELECT 
-            *,
-            CASE 
-                WHEN total_spent >= 1000 AND transaction_count >= 10 THEN 'High Value High Frequency'
-                WHEN total_spent >= 1000 THEN 'High Value Low Frequency' 
-                WHEN transaction_count >= 10 THEN 'Low Value High Frequency'
-                ELSE 'Low Value Low Frequency'
-            END as customer_segment,
-            DATEDIFF('day', first_purchase_date, last_purchase_date) as customer_lifespan_days
-        FROM customer_metrics
-    ),
-    segment_analysis AS (
-        -- Step 3: Analyze segments
-        SELECT 
-            customer_segment,
-            COUNT(*) as customers_in_segment,
-            ROUND(AVG(total_spent), 2) as avg_spending_per_customer,
-            ROUND(AVG(transaction_count), 2) as avg_transactions_per_customer,
-            ROUND(AVG(customer_lifespan_days), 1) as avg_customer_lifespan_days,
-            SUM(total_spent) as total_segment_revenue
-        FROM customer_segments
-        GROUP BY customer_segment
-    )
-    -- Step 4: Final output with business context
-    SELECT 
-        customer_segment,
-        customers_in_segment,
-        avg_spending_per_customer,
-        avg_transactions_per_customer, 
-        avg_customer_lifespan_days,
-        total_segment_revenue,
-        ROUND(total_segment_revenue / SUM(total_segment_revenue) OVER () * 100, 1) as revenue_percentage
-    FROM segment_analysis
-    ORDER BY total_segment_revenue DESC
-    """)
-
-    _display = [
-        mo.md("""
-        **✅ CTE Approach - Multi-Step Customer Segmentation:**
-        """),
-        mo.ui.table(cte_result.value),
-        mo.md("""
-
-        **🎯 When CTEs Excel:**
-        - **Complex Logic**: Multiple transformation steps
-        - **Readability**: Clear, logical flow from raw data to insights
-        - **Reusability**: Same CTE referenced multiple times
-        - **Maintainability**: Easy to modify individual steps
-        """),
-    ]
+def _(mo):
+    mo.md("""### CTE Approach - Complex Multi-Step Analysis""")
     return
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Subquery Approach - Simple Filtering and Comparisons
-    """
-    subquery_result = sql("""
-    -- Subquery approach: Efficient for simple operations
-    SELECT 
-        t.customer_id,
-        t.date,
-        t.price * t.quantity as transaction_amount,
-        t.region,
-        -- Compare to customer average (correlated subquery)
-        ROUND(
-            (t.price * t.quantity) - 
-            (SELECT AVG(t2.price * t2.quantity) 
-             FROM transactions t2 
-             WHERE t2.customer_id = t.customer_id), 
-            2
-        ) as diff_from_customer_avg,
-
-        -- Compare to regional average (non-correlated subquery)
-        ROUND(
-            (t.price * t.quantity) - 
-            (SELECT AVG(t3.price * t3.quantity) 
-             FROM transactions t3 
-             WHERE t3.region = t.region), 
-            2
-        ) as diff_from_regional_avg,
-
-        -- Count of customer's previous transactions
-        (SELECT COUNT(*) 
-         FROM transactions t4 
-         WHERE t4.customer_id = t.customer_id 
-         AND t4.date < t.date) as previous_transaction_count
-
-    FROM transactions t
-    WHERE t.customer_id IN (
-        -- Subquery for filtering: customers with high spending
-        SELECT customer_id
-        FROM transactions
-        GROUP BY customer_id
-        HAVING SUM(price * quantity) > 500
+def _(mo, transactions):
+    """CTE approach: Clear, readable multi-step analysis"""
+    _cte_result = mo.sql(
+        f"""
+        WITH customer_metrics AS (
+            -- Step 1: Calculate basic customer metrics
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_value,
+                MIN(date) as first_purchase_date,
+                MAX(date) as last_purchase_date
+            FROM transactions
+            GROUP BY customer_id
+        ),
+        customer_segments AS (
+            -- Step 2: Segment customers based on spending and frequency
+            SELECT 
+                *,
+                CASE 
+                    WHEN total_spent >= 1000 AND transaction_count >= 10 THEN 'High Value High Frequency'
+                    WHEN total_spent >= 1000 THEN 'High Value Low Frequency' 
+                    WHEN transaction_count >= 10 THEN 'Low Value High Frequency'
+                    ELSE 'Low Value Low Frequency'
+                END as customer_segment,
+                DATEDIFF('day', first_purchase_date, last_purchase_date) as customer_lifespan_days
+            FROM customer_metrics
+        ),
+        segment_analysis AS (
+            -- Step 3: Analyze segments
+            SELECT 
+                customer_segment,
+                COUNT(*) as customers_in_segment,
+                ROUND(AVG(total_spent), 2) as avg_spending_per_customer,
+                ROUND(AVG(transaction_count), 2) as avg_transactions_per_customer,
+                ROUND(AVG(customer_lifespan_days), 1) as avg_customer_lifespan_days,
+                SUM(total_spent) as total_segment_revenue
+            FROM customer_segments
+            GROUP BY customer_segment
+        )
+        -- Step 4: Final output with business context
+        SELECT 
+            customer_segment,
+            customers_in_segment,
+            avg_spending_per_customer,
+            avg_transactions_per_customer, 
+            avg_customer_lifespan_days,
+            total_segment_revenue,
+            ROUND(total_segment_revenue / SUM(total_segment_revenue) OVER () * 100, 1) as revenue_percentage
+        FROM segment_analysis
+        ORDER BY total_segment_revenue DESC
+        """
     )
-    AND t.date >= '2024-01-01'
-    ORDER BY t.customer_id, t.date
-    LIMIT 20;
-    """)
+    return
 
-    _display = [
-        mo.md("""
-        **✅ Subquery Approach - Row-Level Comparisons:**
-        """),
-        mo.ui.table(subquery_result.value),
-        mo.md("""
 
-        **🎯 When Subqueries Excel:**
-        - **Simple Filtering**: WHERE clause with EXISTS or IN
-        - **Correlated Operations**: Row-by-row comparisons
-        - **Performance**: Often optimized better by query planner
-        - **Memory Efficiency**: No intermediate result materialization
-        """),
-    ]
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **🎯 When CTEs Excel:**
+    - **Complex Logic**: Multiple transformation steps
+    - **Readability**: Clear, logical flow from raw data to insights
+    - **Reusability**: Same CTE referenced multiple times
+    - **Maintainability**: Easy to modify individual steps
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""### Subquery Approach - Simple Filtering and Comparisons""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Subquery approach: Efficient for simple operations"""
+    _subquery_result = mo.sql(
+        f"""
+        SELECT 
+            t.customer_id,
+            t.date,
+            t.price * t.quantity as transaction_amount,
+            t.region,
+            -- Compare to customer average (correlated subquery)
+            ROUND(
+                (t.price * t.quantity) - 
+                (SELECT AVG(t2.price * t2.quantity) 
+                 FROM transactions t2 
+                 WHERE t2.customer_id = t.customer_id), 
+                2
+            ) as diff_from_customer_avg,
+
+            -- Compare to regional average (non-correlated subquery)
+            ROUND(
+                (t.price * t.quantity) - 
+                (SELECT AVG(t3.price * t3.quantity) 
+                 FROM transactions t3 
+                 WHERE t3.region = t.region), 
+                2
+            ) as diff_from_regional_avg,
+
+            -- Count of customer's previous transactions
+            (SELECT COUNT(*) 
+             FROM transactions t4 
+             WHERE t4.customer_id = t.customer_id 
+             AND t4.date < t.date) as previous_transaction_count
+
+        FROM transactions t
+        WHERE t.customer_id IN (
+            -- Subquery for filtering: customers with high spending
+            SELECT customer_id
+            FROM transactions
+            GROUP BY customer_id
+            HAVING SUM(price * quantity) > 500
+        )
+        AND t.date >= '2024-01-01'
+        ORDER BY t.customer_id, t.date
+        LIMIT 20
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **🎯 When Subqueries Excel:**
+    - **Simple Filtering**: WHERE clause with EXISTS or IN
+    - **Correlated Operations**: Row-by-row comparisons
+    - **Performance**: Often optimized better by query planner
+    - **Memory Efficiency**: No intermediate result materialization
+    """
+    )
     return
 
 
@@ -809,92 +867,104 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### EXPLAIN - CTE Approach
-    """
-    # EXPLAIN for CTE query
-    explain_cte_query = """
-    EXPLAIN
-    WITH customer_metrics AS (
-        SELECT 
-            customer_id,
-            COUNT(*) as transaction_count,
-            SUM(price * quantity) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_value
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY customer_id
-    ),
-    high_value_customers AS (
-        SELECT 
-            customer_id,
-            total_spent,
-            transaction_count
-        FROM customer_metrics
-        WHERE total_spent > 500
-    )
-    SELECT 
-        customer_id,
-        total_spent,
-        transaction_count,
-        ROUND(total_spent / transaction_count, 2) as avg_per_transaction
-    FROM high_value_customers
-    ORDER BY total_spent DESC
-    LIMIT 10;
-    """
-
-    explain_cte_result = sql(explain_cte_query)
-
-    _display = [
-        mo.md("""
-        **📊 CTE Query Execution Plan:**
-
-        This shows how DuckDB executes the CTE-based query with multiple transformation steps.
-        """),
-        mo.ui.table(explain_cte_result.value),
-    ]
+def _(mo):
+    mo.md("""### EXPLAIN - CTE Approach""")
     return
 
 
 @app.cell
-def _(conn, mo):
-    """
-    ### EXPLAIN - Subquery Approach
-    """
-    # EXPLAIN for equivalent subquery
-    explain_subquery_query = """
-    EXPLAIN
-    SELECT 
-        customer_id,
-        total_spent,
-        transaction_count,
-        ROUND(total_spent / transaction_count, 2) as avg_per_transaction
-    FROM (
+def _(mo):
+    """EXPLAIN for CTE query"""
+    _explain_cte_result = mo.sql(
+        f"""
+        EXPLAIN
+        WITH customer_metrics AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+        ),
+        high_value_customers AS (
+            SELECT 
+                customer_id,
+                total_spent,
+                transaction_count
+            FROM customer_metrics
+            WHERE total_spent > 500
+        )
         SELECT 
             customer_id,
-            COUNT(*) as transaction_count,
-            SUM(price * quantity) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_value
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY customer_id
-        HAVING SUM(price * quantity) > 500
-    ) as customer_metrics
-    ORDER BY total_spent DESC
-    LIMIT 10;
+            total_spent,
+            transaction_count,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM high_value_customers
+        ORDER BY total_spent DESC
+        LIMIT 10
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **📊 CTE Query Execution Plan:**
+
+    This shows how DuckDB executes the CTE-based query with multiple transformation steps.
     """
+    )
+    return
 
-    explain_subquery_df = conn.execute(explain_subquery_query).df()
 
-    _display = [
-        mo.md("""
-        **📊 Subquery Execution Plan:**
+@app.cell
+def _(mo):
+    mo.md("""### EXPLAIN - Subquery Approach""")
+    return
 
-        This shows the execution plan for the equivalent subquery-based approach.
-        """),
-        mo.ui.table(explain_subquery_df),
-    ]
+
+@app.cell
+def _(mo):
+    """EXPLAIN for equivalent subquery"""
+    _explain_subquery_result = mo.sql(
+        f"""
+        EXPLAIN
+        SELECT 
+            customer_id,
+            total_spent,
+            transaction_count,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+            HAVING SUM(price * quantity) > 500
+        ) as customer_metrics
+        ORDER BY total_spent DESC
+        LIMIT 10
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **📊 Subquery Execution Plan:**
+
+    This shows the execution plan for the equivalent subquery-based approach.
+    """
+    )
     return
 
 
@@ -1070,178 +1140,190 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Manual Pivot - Sales by Region and Month
-    """
-    pivot_result = sql("""
-    -- Transform region data from rows to columns by month
-    WITH monthly_regional_sales AS (
-        SELECT 
-            DATE_TRUNC('month', date) as month,
-            region,
-            SUM(price * quantity) as sales
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY DATE_TRUNC('month', date), region
-    )
-    SELECT 
-        month,
-        ROUND(COALESCE(SUM(CASE WHEN region = 'North' THEN sales END), 0), 2) as north_sales,
-        ROUND(COALESCE(SUM(CASE WHEN region = 'South' THEN sales END), 0), 2) as south_sales,
-        ROUND(COALESCE(SUM(CASE WHEN region = 'East' THEN sales END), 0), 2) as east_sales,
-        ROUND(COALESCE(SUM(CASE WHEN region = 'West' THEN sales END), 0), 2) as west_sales,
-        ROUND(SUM(sales), 2) as total_monthly_sales
-    FROM monthly_regional_sales
-    GROUP BY month
-    ORDER BY month;
-    """)
-
-    _display = [
-        mo.md("""
-        **📊 Pivoted Sales Data - Regions as Columns:**
-        """),
-        mo.ui.table(pivot_result.value),
-        mo.md("""
-
-        **🔧 Pivot Technique Explained:**
-        - **CASE WHEN**: Conditionally aggregate values for each region
-        - **COALESCE**: Handle NULL values (months with no sales in a region)
-        - **GROUP BY month**: Collapse regions into columns for each month
-
-        **Use Cases:**
-        - **Reporting**: Month-over-month regional performance
-        - **Dashboards**: Wide format for visualization tools
-        - **Analysis**: Easy comparison across categories
-        """),
-    ]
+def _(mo):
+    mo.md("""### Manual Pivot - Sales by Region and Month""")
     return
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Advanced Pivot - Customer Segments by Promo Code Usage
-    """
-    advanced_pivot_result = sql("""
-    -- Analyze customer segments and their promo code preferences
-    WITH customer_promo_analysis AS (
+def _(mo, transactions):
+    """Transform region data from rows to columns by month"""
+    _pivot_result = mo.sql(
+        f"""
+        WITH monthly_regional_sales AS (
+            SELECT 
+                DATE_TRUNC('month', date) as month,
+                region,
+                SUM(price * quantity) as sales
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY DATE_TRUNC('month', date), region
+        )
         SELECT 
-            customer_id,
-            -- Customer spending tier
-            CASE 
-                WHEN SUM(price * quantity) >= 1000 THEN 'High Spender'
-                WHEN SUM(price * quantity) >= 500 THEN 'Medium Spender' 
-                ELSE 'Low Spender'
-            END as spending_tier,
-            -- Promo code usage counts
-            COUNT(CASE WHEN promo_code = 'PROMO10' THEN 1 END) as promo10_usage,
-            COUNT(CASE WHEN promo_code = 'PROMO20' THEN 1 END) as promo20_usage,
-            COUNT(CASE WHEN promo_code = 'PROMO30' THEN 1 END) as promo30_usage,
-            COUNT(CASE WHEN promo_code IS NULL THEN 1 END) as no_promo_usage,
-            COUNT(*) as total_transactions
-        FROM transactions
-        GROUP BY customer_id
+            month,
+            ROUND(COALESCE(SUM(CASE WHEN region = 'North' THEN sales END), 0), 2) as north_sales,
+            ROUND(COALESCE(SUM(CASE WHEN region = 'South' THEN sales END), 0), 2) as south_sales,
+            ROUND(COALESCE(SUM(CASE WHEN region = 'East' THEN sales END), 0), 2) as east_sales,
+            ROUND(COALESCE(SUM(CASE WHEN region = 'West' THEN sales END), 0), 2) as west_sales,
+            ROUND(SUM(sales), 2) as total_monthly_sales
+        FROM monthly_regional_sales
+        GROUP BY month
+        ORDER BY month
+        """
     )
-    SELECT 
-        spending_tier,
-        COUNT(*) as customers_in_tier,
-
-        -- Average promo usage per customer in each tier
-        ROUND(AVG(promo10_usage), 2) as avg_promo10_per_customer,
-        ROUND(AVG(promo20_usage), 2) as avg_promo20_per_customer,
-        ROUND(AVG(promo30_usage), 2) as avg_promo30_per_customer,
-        ROUND(AVG(no_promo_usage), 2) as avg_no_promo_per_customer,
-
-        -- Total promo usage by tier
-        SUM(promo10_usage) as total_promo10_usage,
-        SUM(promo20_usage) as total_promo20_usage,
-        SUM(promo30_usage) as total_promo30_usage,
-        SUM(no_promo_usage) as total_no_promo_usage,
-
-        -- Promo preference percentages
-        ROUND(SUM(promo10_usage) * 100.0 / SUM(total_transactions), 1) as promo10_pct,
-        ROUND(SUM(promo20_usage) * 100.0 / SUM(total_transactions), 1) as promo20_pct,
-        ROUND(SUM(promo30_usage) * 100.0 / SUM(total_transactions), 1) as promo30_pct
-
-    FROM customer_promo_analysis
-    GROUP BY spending_tier
-    ORDER BY 
-        CASE spending_tier
-            WHEN 'High Spender' THEN 1
-            WHEN 'Medium Spender' THEN 2
-            ELSE 3
-        END;
-    """)
-
-    _display = [
-        mo.md("""
-        **🎯 Advanced Pivot - Customer Behavior Analysis:**
-        """),
-        mo.ui.table(advanced_pivot_result.value),
-        mo.md("""
-
-        **💡 Business Insights:**
-        - **Promo Effectiveness**: Which promotions appeal to each spending tier?
-        - **Customer Behavior**: Do high spenders use promotions differently?
-        - **Marketing Strategy**: Target promotions based on customer segments
-
-        **Cross-Tabulation Benefits:**
-        - **Multi-dimensional Analysis**: Customer tier × Promo code usage
-        - **Percentage Calculations**: Understanding proportional preferences
-        - **Segmentation Insights**: Behavioral patterns by customer value
-        """),
-    ]
     return
 
 
 @app.cell
-def _(mo, sql):
+def _(mo):
+    mo.md(
+        """
+    **🔧 Pivot Technique Explained:**
+    - **CASE WHEN**: Conditionally aggregate values for each region
+    - **COALESCE**: Handle NULL values (months with no sales in a region)
+    - **GROUP BY month**: Collapse regions into columns for each month
+
+    **Use Cases:**
+    - **Reporting**: Month-over-month regional performance
+    - **Dashboards**: Wide format for visualization tools
+    - **Analysis**: Easy comparison across categories
     """
-    ### UNPIVOT - Converting Wide to Long Format
-    """
-    unpivot_result = sql("""
-    -- First create pivoted data, then unpivot it
-    WITH pivoted_data AS (
-        SELECT 
-            DATE_TRUNC('month', date) as month,
-            ROUND(SUM(CASE WHEN region = 'North' THEN price * quantity ELSE 0 END), 2) as north_sales,
-            ROUND(SUM(CASE WHEN region = 'South' THEN price * quantity ELSE 0 END), 2) as south_sales,
-            ROUND(SUM(CASE WHEN region = 'East' THEN price * quantity ELSE 0 END), 2) as east_sales,
-            ROUND(SUM(CASE WHEN region = 'West' THEN price * quantity ELSE 0 END), 2) as west_sales
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY DATE_TRUNC('month', date)
     )
-    -- Unpivot back to normalized form using UNION ALL
-    SELECT month, 'North' as region, north_sales as sales FROM pivoted_data
-    UNION ALL
-    SELECT month, 'South' as region, south_sales as sales FROM pivoted_data  
-    UNION ALL
-    SELECT month, 'East' as region, east_sales as sales FROM pivoted_data
-    UNION ALL
-    SELECT month, 'West' as region, west_sales as sales FROM pivoted_data
-    ORDER BY month, region;
-    """)
+    return
 
-    _display = [
-        mo.md("""
-        **🔄 UNPIVOT - Wide to Long Format Transformation:**
-        """),
-        mo.ui.table(unpivot_result.value),
-        mo.md("""
 
-        **🛠️ UNPIVOT Techniques:**
-        - **UNION ALL**: Most common method for unpivoting in PostgreSQL
-        - **VALUES Clause**: Alternative approach for smaller datasets
-        - **LATERAL Joins**: More complex but flexible unpivoting
+@app.cell
+def _(mo):
+    mo.md("""### Advanced Pivot - Customer Segments by Promo Code Usage""")
+    return
 
-        **When to UNPIVOT:**
-        - **Data Integration**: Combining data from different sources
-        - **Visualization**: Many tools prefer long format
-        - **Analysis**: Easier to filter and aggregate normalized data
-        """),
-    ]
+
+@app.cell
+def _(mo, transactions):
+    """Analyze customer segments and their promo code preferences"""
+    _advanced_pivot_result = mo.sql(
+        f"""
+        WITH customer_promo_analysis AS (
+            SELECT 
+                customer_id,
+                -- Customer spending tier
+                CASE 
+                    WHEN SUM(price * quantity) >= 1000 THEN 'High Spender'
+                    WHEN SUM(price * quantity) >= 500 THEN 'Medium Spender' 
+                    ELSE 'Low Spender'
+                END as spending_tier,
+                -- Promo code usage counts
+                COUNT(CASE WHEN promo_code = 'PROMO10' THEN 1 END) as promo10_usage,
+                COUNT(CASE WHEN promo_code = 'PROMO20' THEN 1 END) as promo20_usage,
+                COUNT(CASE WHEN promo_code = 'PROMO30' THEN 1 END) as promo30_usage,
+                COUNT(CASE WHEN promo_code IS NULL THEN 1 END) as no_promo_usage,
+                COUNT(*) as total_transactions
+            FROM transactions
+            GROUP BY customer_id
+        )
+        SELECT 
+            spending_tier,
+            COUNT(*) as customers_in_tier,
+
+            -- Average promo usage per customer in each tier
+            ROUND(AVG(promo10_usage), 2) as avg_promo10_per_customer,
+            ROUND(AVG(promo20_usage), 2) as avg_promo20_per_customer,
+            ROUND(AVG(promo30_usage), 2) as avg_promo30_per_customer,
+            ROUND(AVG(no_promo_usage), 2) as avg_no_promo_per_customer,
+
+            -- Total promo usage by tier
+            SUM(promo10_usage) as total_promo10_usage,
+            SUM(promo20_usage) as total_promo20_usage,
+            SUM(promo30_usage) as total_promo30_usage,
+            SUM(no_promo_usage) as total_no_promo_usage,
+
+            -- Promo preference percentages
+            ROUND(SUM(promo10_usage) * 100.0 / SUM(total_transactions), 1) as promo10_pct,
+            ROUND(SUM(promo20_usage) * 100.0 / SUM(total_transactions), 1) as promo20_pct,
+            ROUND(SUM(promo30_usage) * 100.0 / SUM(total_transactions), 1) as promo30_pct
+
+        FROM customer_promo_analysis
+        GROUP BY spending_tier
+        ORDER BY 
+            CASE spending_tier
+                WHEN 'High Spender' THEN 1
+                WHEN 'Medium Spender' THEN 2
+                ELSE 3
+            END
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **💡 Business Insights:**
+    - **Promo Effectiveness**: Which promotions appeal to each spending tier?
+    - **Customer Behavior**: Do high spenders use promotions differently?
+    - **Marketing Strategy**: Target promotions based on customer segments
+
+    **Cross-Tabulation Benefits:**
+    - **Multi-dimensional Analysis**: Customer tier × Promo code usage
+    - **Percentage Calculations**: Understanding proportional preferences
+    - **Segmentation Insights**: Behavioral patterns by customer value
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""### UNPIVOT - Converting Wide to Long Format""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Unpivot: Convert wide to long format"""
+    _unpivot_result = mo.sql(
+        f"""
+        WITH pivoted_data AS (
+            SELECT 
+                DATE_TRUNC('month', date) as month,
+                ROUND(SUM(CASE WHEN region = 'North' THEN price * quantity ELSE 0 END), 2) as north_sales,
+                ROUND(SUM(CASE WHEN region = 'South' THEN price * quantity ELSE 0 END), 2) as south_sales,
+                ROUND(SUM(CASE WHEN region = 'East' THEN price * quantity ELSE 0 END), 2) as east_sales,
+                ROUND(SUM(CASE WHEN region = 'West' THEN price * quantity ELSE 0 END), 2) as west_sales
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY DATE_TRUNC('month', date)
+        )
+        -- Unpivot back to normalized form using UNION ALL
+        SELECT month, 'North' as region, north_sales as sales FROM pivoted_data
+        UNION ALL
+        SELECT month, 'South' as region, south_sales as sales FROM pivoted_data  
+        UNION ALL
+        SELECT month, 'East' as region, east_sales as sales FROM pivoted_data
+        UNION ALL
+        SELECT month, 'West' as region, west_sales as sales FROM pivoted_data
+        ORDER BY month, region
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **🛠️ UNPIVOT Techniques:**
+    - **UNION ALL**: Most common method for unpivoting in PostgreSQL
+    - **VALUES Clause**: Alternative approach for smaller datasets
+    - **LATERAL Joins**: More complex but flexible unpivoting
+
+    **When to UNPIVOT:**
+    - **Data Integration**: Combining data from different sources
+    - **Visualization**: Many tools prefer long format
+    - **Analysis**: Easier to filter and aggregate normalized data
+    """
+    )
     return
 
 
@@ -1261,318 +1343,339 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Gap Analysis - Finding Missing Data Points
-    """
-    gap_analysis_result = sql("""
-    -- Find gaps in daily transaction data
-    WITH date_range AS (
-        SELECT DATE '2024-01-01' + (n || ' days')::INTERVAL as expected_date
-        FROM generate_series(0, 365) as t(n)
-    ),
-    actual_transaction_dates AS (
-        SELECT DISTINCT date as transaction_date
-        FROM transactions
-        WHERE date BETWEEN '2024-01-01' AND '2024-12-31'
-    ),
-    missing_dates AS (
-        SELECT dr.expected_date as missing_date
-        FROM date_range dr
-        LEFT JOIN actual_transaction_dates atd ON dr.expected_date = atd.transaction_date
-        WHERE atd.transaction_date IS NULL
-    )
-    SELECT 
-        missing_date,
-        -- Context: What day of week was this?
-        CASE EXTRACT(DOW FROM missing_date)
-            WHEN 0 THEN 'Sunday'
-            WHEN 1 THEN 'Monday' 
-            WHEN 2 THEN 'Tuesday'
-            WHEN 3 THEN 'Wednesday'
-            WHEN 4 THEN 'Thursday'
-            WHEN 5 THEN 'Friday'
-            WHEN 6 THEN 'Saturday'
-        END as day_of_week,
-
-        -- How many days since last transaction?
-        DATEDIFF('day', LAG(missing_date, 1) OVER (ORDER BY missing_date), missing_date) as days_since_prev_gap
-
-    FROM missing_dates
-    ORDER BY missing_date
-    LIMIT 20;
-    """)
-
-    _display = [
-        mo.md("""
-        **🔍 Gap Analysis - Missing Transaction Dates:**
-        """),
-        mo.ui.table(gap_analysis_result.value),
-        mo.md(f"""
-
-        **Total Missing Days:** {len(gap_analysis_result.value)} out of 366 days in 2024
-
-        **🎯 Gap Analysis Applications:**
-        - **Data Quality**: Identify missing data points
-        - **Business Continuity**: Find operational gaps
-        - **Seasonality**: Understand patterns in missing data
-        - **System Monitoring**: Detect data pipeline issues
-        """),
-    ]
+def _(mo):
+    mo.md("""### Gap Analysis - Finding Missing Data Points""")
     return
 
 
 @app.cell
-def _(mo, sql):
-    """
-    ### Islands Analysis - Finding Consecutive Sequences
-    """
-    islands_result = sql("""
-    -- Find consecutive days of high-volume sales (islands)
-    WITH daily_sales AS (
+def _(mo, transactions):
+    """Find gaps in daily transaction data"""
+    gap_analysis_result = mo.sql(
+        f"""
+        WITH date_range AS (
+            SELECT DATE '2024-01-01' + (n || ' days')::INTERVAL as expected_date
+            FROM generate_series(0, 365) as t(n)
+        ),
+        actual_transaction_dates AS (
+            SELECT DISTINCT date as transaction_date
+            FROM transactions
+            WHERE date BETWEEN '2024-01-01' AND '2024-12-31'
+        ),
+        missing_dates AS (
+            SELECT dr.expected_date as missing_date
+            FROM date_range dr
+            LEFT JOIN actual_transaction_dates atd ON dr.expected_date = atd.transaction_date
+            WHERE atd.transaction_date IS NULL
+        )
         SELECT 
-            date,
-            SUM(price * quantity) as daily_revenue,
-            COUNT(*) as transaction_count
-        FROM transactions
-        GROUP BY date
-        ORDER BY date
-    ),
-    high_volume_days AS (
-        SELECT 
-            date,
-            daily_revenue,
-            transaction_count,
-            -- Create island identifier using row_number technique
-            date - ROW_NUMBER() OVER (ORDER BY date) * INTERVAL '1 day' as island_id
-        FROM daily_sales
-        WHERE transaction_count >= 50  -- Define "high volume" threshold
-    ),
-    islands AS (
-        SELECT 
-            island_id,
-            MIN(date) as island_start,
-            MAX(date) as island_end,
-            COUNT(*) as consecutive_days,
-            ROUND(SUM(daily_revenue), 2) as total_island_revenue,
-            ROUND(AVG(daily_revenue), 2) as avg_daily_revenue,
-            SUM(transaction_count) as total_island_transactions
-        FROM high_volume_days
-        GROUP BY island_id
-    )
-    SELECT 
-        island_start,
-        island_end,
-        consecutive_days,
-        total_island_revenue,
-        avg_daily_revenue,
-        total_island_transactions,
-        -- Calculate days between islands
-        DATEDIFF('day', LAG(island_end, 1) OVER (ORDER BY island_start), island_start) - 1 as days_between_islands
-    FROM islands
-    WHERE consecutive_days >= 3  -- Only show islands of 3+ consecutive days
-    ORDER BY island_start;
-    """)
-
-    _display = [
-        mo.md("""
-        **🏝️ Islands Analysis - Consecutive High-Volume Periods:**
-        """),
-        mo.ui.table(islands_result.value),
-        mo.md(f"""
-
-        **Found {len(islands_result.value)} high-volume islands (3+ consecutive days with 50+ transactions)**
-
-        **🎯 Islands Analysis Applications:**
-        - **Performance Periods**: Identify sustained high-performance windows
-        - **Campaign Analysis**: Measure promotion duration effectiveness  
-        - **Operational Planning**: Understand busy period patterns
-        - **Capacity Planning**: Prepare for consecutive high-demand periods
-
-        **🛠️ Technical Note:**
-        The `date - ROW_NUMBER() * INTERVAL '1 day'` technique creates identical values for consecutive dates, effectively grouping them into islands.
-        """),
-    ]
-    return
-
-
-@app.cell
-def _(mo, sql):
-    """
-    ### Data Deduplication with Quality Scoring
-    """
-    deduplication_result = sql("""
-    -- Advanced deduplication with data quality scoring
-    WITH transaction_quality AS (
-        SELECT 
-            *,
-            -- Calculate quality score based on completeness
-            (
-                CASE WHEN date IS NOT NULL THEN 1 ELSE 0 END +
-                CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END +
-                CASE WHEN product_id IS NOT NULL THEN 1 ELSE 0 END +
-                CASE WHEN price > 0 THEN 1 ELSE 0 END +
-                CASE WHEN quantity > 0 THEN 1 ELSE 0 END +
-                CASE WHEN region IS NOT NULL THEN 1 ELSE 0 END +
-                -- Bonus points for promo code (additional data)
-                CASE WHEN promo_code IS NOT NULL THEN 1 ELSE 0 END
-            ) as quality_score,
-
-            -- Identify potential duplicates
-            ROW_NUMBER() OVER (
-                PARTITION BY customer_id, product_id, date, price
-                ORDER BY 
-                    -- Prioritize records with promo codes
-                    CASE WHEN promo_code IS NOT NULL THEN 1 ELSE 0 END DESC,
-                    -- Then by completeness score
-                    (
-                        CASE WHEN date IS NOT NULL THEN 1 ELSE 0 END +
-                        CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END +
-                        CASE WHEN product_id IS NOT NULL THEN 1 ELSE 0 END +
-                        CASE WHEN price > 0 THEN 1 ELSE 0 END +
-                        CASE WHEN quantity > 0 THEN 1 ELSE 0 END +
-                        CASE WHEN region IS NOT NULL THEN 1 ELSE 0 END
-                    ) DESC
-            ) as row_rank
-        FROM transactions
-    ),
-    duplicate_analysis AS (
-        SELECT 
-            quality_score,
-            COUNT(*) as records_with_score,
-            COUNT(CASE WHEN row_rank = 1 THEN 1 END) as records_after_dedup,
-            COUNT(CASE WHEN row_rank > 1 THEN 1 END) as duplicate_records_removed
-        FROM transaction_quality
-        GROUP BY quality_score
-    )
-    SELECT 
-        quality_score,
-        records_with_score,
-        records_after_dedup,
-        duplicate_records_removed,
-        ROUND(duplicate_records_removed * 100.0 / records_with_score, 1) as duplicate_percentage
-    FROM duplicate_analysis
-    ORDER BY quality_score DESC;
-    """)
-
-    _display = [
-        mo.md("""
-        **🧹 Advanced Deduplication with Quality Scoring:**
-        """),
-        mo.ui.table(deduplication_result.value),
-        mo.md("""
-
-        **Quality Score Components:**
-        - **Base Fields**: date, customer_id, product_id, price, quantity, region (6 points)
-        - **Bonus Field**: promo_code (+1 point for completeness)
-        - **Maximum Score**: 7 points
-
-        **🎯 Deduplication Strategy:**
-        1. **Identify Duplicates**: Same customer, product, date, price
-        2. **Quality Scoring**: Rank records by completeness
-        3. **Preference Logic**: Keep records with promo codes (more informative)
-        4. **Systematic Selection**: Consistent tie-breaking rules
-
-        **Business Impact:**
-        - **Data Quality**: Remove redundant records systematically
-        - **Analysis Accuracy**: Prevent double-counting in metrics
-        - **Storage Efficiency**: Reduce data storage requirements
-        """),
-    ]
-    return
-
-
-@app.cell
-def _(mo, sql):
-    """
-    ### Time Series Pattern Analysis with Taxi Data
-    """
-    taxi_patterns_result = sql("""
-    -- Analyze temporal patterns in NYC taxi data
-    WITH hourly_patterns AS (
-        SELECT 
-            DATE(tpep_pickup_datetime) as trip_date,
-            EXTRACT(HOUR FROM tpep_pickup_datetime) as hour_of_day,
-            EXTRACT(DOW FROM tpep_pickup_datetime) as day_of_week, -- 0=Sunday
-            COUNT(*) as trip_count,
-            ROUND(AVG(fare_amount), 2) as avg_fare,
-            ROUND(AVG(trip_distance), 2) as avg_distance,
-            ROUND(AVG(tip_amount), 2) as avg_tip
-        FROM taxi_data
-        WHERE DATE(tpep_pickup_datetime) BETWEEN '2024-01-01' AND '2024-01-31'  -- January only
-        GROUP BY 
-            DATE(tpep_pickup_datetime),
-            EXTRACT(HOUR FROM tpep_pickup_datetime),
-            EXTRACT(DOW FROM tpep_pickup_datetime)
-    ),
-    pattern_analysis AS (
-        SELECT 
-            hour_of_day,
-            CASE day_of_week
+            missing_date,
+            -- Context: What day of week was this?
+            CASE EXTRACT(DOW FROM missing_date)
                 WHEN 0 THEN 'Sunday'
-                WHEN 1 THEN 'Monday'
-                WHEN 2 THEN 'Tuesday' 
+                WHEN 1 THEN 'Monday' 
+                WHEN 2 THEN 'Tuesday'
                 WHEN 3 THEN 'Wednesday'
                 WHEN 4 THEN 'Thursday'
                 WHEN 5 THEN 'Friday'
                 WHEN 6 THEN 'Saturday'
-            END as day_name,
-            CASE 
-                WHEN day_of_week IN (0, 6) THEN 'Weekend'
-                ELSE 'Weekday'
-            END as day_type,
+            END as day_of_week,
 
-            COUNT(*) as observations,
-            ROUND(AVG(trip_count), 1) as avg_trips_per_hour,
-            ROUND(STDDEV(trip_count), 1) as stddev_trips,
-            ROUND(MIN(trip_count), 1) as min_trips,
-            ROUND(MAX(trip_count), 1) as max_trips,
-            ROUND(AVG(avg_fare), 2) as avg_hourly_fare,
-            ROUND(AVG(avg_distance), 2) as avg_hourly_distance
-        FROM hourly_patterns
-        GROUP BY hour_of_day, day_of_week, day_name, day_type
+            -- How many days since last transaction?
+            DATEDIFF('day', LAG(missing_date, 1) OVER (ORDER BY missing_date), missing_date) as days_since_prev_gap
+
+        FROM missing_dates
+        ORDER BY missing_date
+        LIMIT 20
+        """
     )
-    SELECT 
-        hour_of_day,
-        day_type,
-        SUM(observations) as total_observations,
-        ROUND(AVG(avg_trips_per_hour), 1) as avg_trips_per_hour,
-        ROUND(AVG(avg_hourly_fare), 2) as avg_fare,
-        ROUND(AVG(avg_hourly_distance), 2) as avg_distance,
+    return (gap_analysis_result,)
 
-        -- Peak hour identification
-        CASE 
-            WHEN hour_of_day BETWEEN 7 AND 9 OR hour_of_day BETWEEN 17 AND 19 THEN 'Rush Hour'
-            WHEN hour_of_day BETWEEN 22 AND 5 THEN 'Late Night'
-            ELSE 'Regular Hours'
-        END as hour_category
 
-    FROM pattern_analysis
-    GROUP BY hour_of_day, day_type
-    ORDER BY day_type, hour_of_day;
-    """)
+@app.cell
+def _(gap_analysis_result, mo):
+    mo.md(
+        f"""
+    **Total Missing Days:** {len(gap_analysis_result.value)} out of 366 days in 2024
 
-    _display = [
-        mo.md("""
-        **🚕 Taxi Usage Patterns - Hourly Analysis:**
-        """),
-        mo.ui.table(taxi_patterns_result.value.iloc[:20]),
-        mo.md(f"""
+    **🎯 Gap Analysis Applications:**
+    - **Data Quality**: Identify missing data points
+    - **Business Continuity**: Find operational gaps
+    - **Seasonality**: Understand patterns in missing data
+    - **System Monitoring**: Detect data pipeline issues
+    """
+    )
+    return
 
-        **Total Records Analyzed:** {len(taxi_patterns_result.value)} hour-daytype combinations
 
-        **🎯 Pattern Analysis Insights:**
-        - **Rush Hour Detection**: 7-9 AM and 5-7 PM show different patterns
-        - **Weekend vs Weekday**: Different usage patterns and fare structures
-        - **Late Night Activity**: Understanding off-peak demand
+@app.cell
+def _(mo):
+    mo.md("""### Islands Analysis - Finding Consecutive Sequences""")
+    return
 
-        **📊 Time Series Applications:**
-        - **Demand Forecasting**: Predict busy periods
-        - **Dynamic Pricing**: Adjust rates based on demand patterns
-        - **Resource Allocation**: Deploy vehicles efficiently
-        - **Service Planning**: Optimize operations by time patterns
-        """),
-    ]
+
+@app.cell
+def _(mo, transactions):
+    """Find consecutive days of high-volume sales (islands)"""
+    islands_result = mo.sql(
+        f"""
+        WITH daily_sales AS (
+            SELECT 
+                date,
+                SUM(price * quantity) as daily_revenue,
+                COUNT(*) as transaction_count
+            FROM transactions
+            GROUP BY date
+            ORDER BY date
+        ),
+        high_volume_days AS (
+            SELECT 
+                date,
+                daily_revenue,
+                transaction_count,
+                -- Create island identifier using row_number technique
+                date - ROW_NUMBER() OVER (ORDER BY date) * INTERVAL '1 day' as island_id
+            FROM daily_sales
+            WHERE transaction_count >= 50  -- Define "high volume" threshold
+        ),
+        islands AS (
+            SELECT 
+                island_id,
+                MIN(date) as island_start,
+                MAX(date) as island_end,
+                COUNT(*) as consecutive_days,
+                ROUND(SUM(daily_revenue), 2) as total_island_revenue,
+                ROUND(AVG(daily_revenue), 2) as avg_daily_revenue,
+                SUM(transaction_count) as total_island_transactions
+            FROM high_volume_days
+            GROUP BY island_id
+        )
+        SELECT 
+            island_start,
+            island_end,
+            consecutive_days,
+            total_island_revenue,
+            avg_daily_revenue,
+            total_island_transactions,
+            -- Calculate days between islands
+            DATEDIFF('day', LAG(island_end, 1) OVER (ORDER BY island_start), island_start) - 1 as days_between_islands
+        FROM islands
+        WHERE consecutive_days >= 3  -- Only show islands of 3+ consecutive days
+        ORDER BY island_start
+        """
+    )
+    return (islands_result,)
+
+
+@app.cell
+def _(islands_result, mo):
+    mo.md(
+        f"""
+    **Found {len(islands_result.value)} high-volume islands (3+ consecutive days with 50+ transactions)**
+
+    **🎯 Islands Analysis Applications:**
+    - **Performance Periods**: Identify sustained high-performance windows
+    - **Campaign Analysis**: Measure promotion duration effectiveness  
+    - **Operational Planning**: Understand busy period patterns
+    - **Capacity Planning**: Prepare for consecutive high-demand periods
+
+    **🛠️ Technical Note:**
+    The `date - ROW_NUMBER() * INTERVAL '1 day'` technique creates identical values for consecutive dates, effectively grouping them into islands.
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""### Data Deduplication with Quality Scoring""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Advanced deduplication with data quality scoring"""
+    _deduplication_result = mo.sql(
+        f"""
+        WITH transaction_quality AS (
+            SELECT 
+                *,
+                -- Calculate quality score based on completeness
+                (
+                    CASE WHEN date IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN product_id IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN price > 0 THEN 1 ELSE 0 END +
+                    CASE WHEN quantity > 0 THEN 1 ELSE 0 END +
+                    CASE WHEN region IS NOT NULL THEN 1 ELSE 0 END +
+                    -- Bonus points for promo code (additional data)
+                    CASE WHEN promo_code IS NOT NULL THEN 1 ELSE 0 END
+                ) as quality_score,
+
+                -- Identify potential duplicates
+                ROW_NUMBER() OVER (
+                    PARTITION BY customer_id, product_id, date, price
+                    ORDER BY 
+                        -- Prioritize records with promo codes
+                        CASE WHEN promo_code IS NOT NULL THEN 1 ELSE 0 END DESC,
+                        -- Then by completeness score
+                        (
+                            CASE WHEN date IS NOT NULL THEN 1 ELSE 0 END +
+                            CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END +
+                            CASE WHEN product_id IS NOT NULL THEN 1 ELSE 0 END +
+                            CASE WHEN price > 0 THEN 1 ELSE 0 END +
+                            CASE WHEN quantity > 0 THEN 1 ELSE 0 END +
+                            CASE WHEN region IS NOT NULL THEN 1 ELSE 0 END
+                        ) DESC
+                ) as row_rank
+            FROM transactions
+        ),
+        duplicate_analysis AS (
+            SELECT 
+                quality_score,
+                COUNT(*) as records_with_score,
+                COUNT(CASE WHEN row_rank = 1 THEN 1 END) as records_after_dedup,
+                COUNT(CASE WHEN row_rank > 1 THEN 1 END) as duplicate_records_removed
+            FROM transaction_quality
+            GROUP BY quality_score
+        )
+        SELECT 
+            quality_score,
+            records_with_score,
+            records_after_dedup,
+            duplicate_records_removed,
+            ROUND(duplicate_records_removed * 100.0 / records_with_score, 1) as duplicate_percentage
+        FROM duplicate_analysis
+        ORDER BY quality_score DESC
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **Quality Score Components:**
+    - **Base Fields**: date, customer_id, product_id, price, quantity, region (6 points)
+    - **Bonus Field**: promo_code (+1 point for completeness)
+    - **Maximum Score**: 7 points
+
+    **🎯 Deduplication Strategy:**
+    1. **Identify Duplicates**: Same customer, product, date, price
+    2. **Quality Scoring**: Rank records by completeness
+    3. **Preference Logic**: Keep records with promo codes (more informative)
+    4. **Systematic Selection**: Consistent tie-breaking rules
+
+    **Business Impact:**
+    - **Data Quality**: Remove redundant records systematically
+    - **Analysis Accuracy**: Prevent double-counting in metrics
+    - **Storage Efficiency**: Reduce data storage requirements
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""### Time Series Pattern Analysis with Taxi Data""")
+    return
+
+
+@app.cell
+def _(mo, taxi_feb, taxi_jan):
+    """Analyze temporal patterns in NYC taxi data"""
+    taxi_patterns_result = mo.sql(
+        f"""
+        WITH taxi_data AS (
+            SELECT * FROM taxi_jan
+            UNION ALL
+            SELECT * FROM taxi_feb
+        ),
+        hourly_patterns AS (
+            SELECT 
+                DATE(tpep_pickup_datetime) as trip_date,
+                EXTRACT(HOUR FROM tpep_pickup_datetime) as hour_of_day,
+                EXTRACT(DOW FROM tpep_pickup_datetime) as day_of_week, -- 0=Sunday
+                COUNT(*) as trip_count,
+                ROUND(AVG(fare_amount), 2) as avg_fare,
+                ROUND(AVG(trip_distance), 2) as avg_distance,
+                ROUND(AVG(tip_amount), 2) as avg_tip
+            FROM taxi_data
+            WHERE DATE(tpep_pickup_datetime) BETWEEN '2024-01-01' AND '2024-01-31'  -- January only
+            GROUP BY 
+                DATE(tpep_pickup_datetime),
+                EXTRACT(HOUR FROM tpep_pickup_datetime),
+                EXTRACT(DOW FROM tpep_pickup_datetime)
+        ),
+        pattern_analysis AS (
+            SELECT 
+                hour_of_day,
+                CASE day_of_week
+                    WHEN 0 THEN 'Sunday'
+                    WHEN 1 THEN 'Monday'
+                    WHEN 2 THEN 'Tuesday' 
+                    WHEN 3 THEN 'Wednesday'
+                    WHEN 4 THEN 'Thursday'
+                    WHEN 5 THEN 'Friday'
+                    WHEN 6 THEN 'Saturday'
+                END as day_name,
+                CASE 
+                    WHEN day_of_week IN (0, 6) THEN 'Weekend'
+                    ELSE 'Weekday'
+                END as day_type,
+
+                COUNT(*) as observations,
+                ROUND(AVG(trip_count), 1) as avg_trips_per_hour,
+                ROUND(STDDEV(trip_count), 1) as stddev_trips,
+                ROUND(MIN(trip_count), 1) as min_trips,
+                ROUND(MAX(trip_count), 1) as max_trips,
+                ROUND(AVG(avg_fare), 2) as avg_hourly_fare,
+                ROUND(AVG(avg_distance), 2) as avg_hourly_distance
+            FROM hourly_patterns
+            GROUP BY hour_of_day, day_of_week, day_name, day_type
+        )
+        SELECT 
+            hour_of_day,
+            day_type,
+            SUM(observations) as total_observations,
+            ROUND(AVG(avg_trips_per_hour), 1) as avg_trips_per_hour,
+            ROUND(AVG(avg_hourly_fare), 2) as avg_fare,
+            ROUND(AVG(avg_hourly_distance), 2) as avg_distance,
+
+            -- Peak hour identification
+            CASE 
+                WHEN hour_of_day BETWEEN 7 AND 9 OR hour_of_day BETWEEN 17 AND 19 THEN 'Rush Hour'
+                WHEN hour_of_day BETWEEN 22 AND 5 THEN 'Late Night'
+                ELSE 'Regular Hours'
+            END as hour_category
+
+        FROM pattern_analysis
+        GROUP BY hour_of_day, day_type
+        ORDER BY day_type, hour_of_day
+        """
+    )
+    return (taxi_patterns_result,)
+
+
+@app.cell
+def _(mo, taxi_patterns_result):
+    mo.md(
+        f"""
+    **Total Records Analyzed:** {len(taxi_patterns_result.value)} hour-daytype combinations
+
+    **🎯 Pattern Analysis Insights:**
+    - **Rush Hour Detection**: 7-9 AM and 5-7 PM show different patterns
+    - **Weekend vs Weekday**: Different usage patterns and fare structures
+    - **Late Night Activity**: Understanding off-peak demand
+
+    **📊 Time Series Applications:**
+    - **Demand Forecasting**: Predict busy periods
+    - **Dynamic Pricing**: Adjust rates based on demand patterns
+    - **Resource Allocation**: Deploy vehicles efficiently
+    - **Service Planning**: Optimize operations by time patterns
+    """
+    )
     return
 
 
@@ -1592,108 +1695,151 @@ def _(mo):
 
 
 @app.cell
-def _(conn, mo):
-    """
-    ### Setting Up Tables for UPSERT Examples
-    """
-    # Create tables for UPSERT demonstrations
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS customer_summary (
-        customer_id INTEGER PRIMARY KEY,
-        first_purchase_date DATE,
-        last_purchase_date DATE,
-        total_transactions INTEGER,
-        total_spent DECIMAL(10,2),
-        avg_transaction_amount DECIMAL(10,2),
-        favorite_region TEXT,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
+def _(mo):
+    mo.md("""### Setting Up Tables for UPSERT Examples""")
+    return
 
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS product_metrics (
-        product_id INTEGER PRIMARY KEY,
-        total_revenue DECIMAL(12,2),
-        total_quantity_sold INTEGER,
-        avg_price DECIMAL(8,2),
-        unique_customers INTEGER,
-        first_sale_date DATE,
-        last_sale_date DATE,
-        calculation_date DATE DEFAULT CURRENT_DATE
-    );
-    """)
 
-    mo.md("""
+@app.cell
+def _(mo):
+    """Create customer_summary table"""
+    _create_customer_summary = mo.sql(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_summary (
+            customer_id INTEGER PRIMARY KEY,
+            first_purchase_date DATE,
+            last_purchase_date DATE,
+            total_transactions INTEGER,
+            total_spent DECIMAL(10,2),
+            avg_transaction_amount DECIMAL(10,2),
+            favorite_region TEXT,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    return (customer_summary,)
+
+
+@app.cell
+def _(mo):
+    """Create product_metrics table"""
+    _create_product_metrics = mo.sql(
+        f"""
+        CREATE TABLE IF NOT EXISTS product_metrics (
+            product_id INTEGER PRIMARY KEY,
+            total_revenue DECIMAL(12,2),
+            total_quantity_sold INTEGER,
+            avg_price DECIMAL(8,2),
+            unique_customers INTEGER,
+            first_sale_date DATE,
+            last_sale_date DATE,
+            calculation_date DATE DEFAULT CURRENT_DATE
+        )
+        """
+    )
+    return (product_metrics,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
     **🛠️ Created Tables for UPSERT Examples:**
     - `customer_summary`: Aggregated customer metrics
     - `product_metrics`: Product performance statistics
 
     These tables will demonstrate idempotent insert/update operations.
-    """)
+    """
+    )
     return
 
 
 @app.cell
-def _(conn, mo, sql):
-    """
-    ### Basic UPSERT Pattern - Customer Summary
-    """
-    upsert_customer_query = """
-    -- Idempotent customer summary update
-    INSERT INTO customer_summary (
-        customer_id,
-        first_purchase_date,
-        last_purchase_date,
-        total_transactions,
-        total_spent,
-        avg_transaction_amount,
-        favorite_region,
-        last_updated
+def _(mo):
+    mo.md("""### Basic UPSERT Pattern - Customer Summary""")
+    return
+
+
+@app.cell
+def _(customer_summary, mo, transactions):
+    """Idempotent customer summary update"""
+    _upsert_customer = mo.sql(
+        f"""
+        INSERT INTO customer_summary (
+            customer_id,
+            first_purchase_date,
+            last_purchase_date,
+            total_transactions,
+            total_spent,
+            avg_transaction_amount,
+            favorite_region,
+            last_updated
+        )
+        SELECT 
+            customer_id,
+            MIN(date) as first_purchase_date,
+            MAX(date) as last_purchase_date,
+            COUNT(*) as total_transactions,
+            ROUND(SUM(price * quantity), 2) as total_spent,
+            ROUND(AVG(price * quantity), 2) as avg_transaction_amount,
+            -- Most frequent region (mode)
+            (SELECT region 
+             FROM transactions t2 
+             WHERE t2.customer_id = t1.customer_id 
+             GROUP BY region 
+             ORDER BY COUNT(*) DESC 
+             LIMIT 1) as favorite_region,
+            CURRENT_TIMESTAMP as last_updated
+        FROM transactions t1
+        GROUP BY customer_id
+        ON CONFLICT (customer_id) 
+        DO UPDATE SET
+            first_purchase_date = LEAST(customer_summary.first_purchase_date, CAST(EXCLUDED.first_purchase_date AS DATE)),
+            last_purchase_date = GREATEST(customer_summary.last_purchase_date, CAST(EXCLUDED.last_purchase_date AS DATE)),
+            total_transactions = EXCLUDED.total_transactions,
+            total_spent = EXCLUDED.total_spent,
+            avg_transaction_amount = EXCLUDED.avg_transaction_amount,
+            favorite_region = EXCLUDED.favorite_region,
+            last_updated = EXCLUDED.last_updated
+        """
     )
-    SELECT 
-        customer_id,
-        MIN(date) as first_purchase_date,
-        MAX(date) as last_purchase_date,
-        COUNT(*) as total_transactions,
-        ROUND(SUM(price * quantity), 2) as total_spent,
-        ROUND(AVG(price * quantity), 2) as avg_transaction_amount,
-        -- Most frequent region (mode)
-        (SELECT region 
-         FROM transactions t2 
-         WHERE t2.customer_id = t1.customer_id 
-         GROUP BY region 
-         ORDER BY COUNT(*) DESC 
-         LIMIT 1) as favorite_region,
-        CURRENT_TIMESTAMP as last_updated
-    FROM transactions t1
-    GROUP BY customer_id
-    ON CONFLICT (customer_id) 
-    DO UPDATE SET
-        first_purchase_date = LEAST(customer_summary.first_purchase_date, CAST(EXCLUDED.first_purchase_date AS DATE)),
-        last_purchase_date = GREATEST(customer_summary.last_purchase_date, CAST(EXCLUDED.last_purchase_date AS DATE)),
-        total_transactions = EXCLUDED.total_transactions,
-        total_spent = EXCLUDED.total_spent,
-        avg_transaction_amount = EXCLUDED.avg_transaction_amount,
-        favorite_region = EXCLUDED.favorite_region,
-        last_updated = EXCLUDED.last_updated;
-    """
+    return
 
-    # Execute the upsert
-    conn.execute(upsert_customer_query)
 
-    # Check results
-    upsert_summary_result = sql("""
+@app.cell
+def _(mo):
+    mo.md("""**Summary Statistics:**""")
+    return
+
+
+@app.cell
+def _(customer_summary, mo):
+    """Check UPSERT results"""
+    _upsert_summary_result = mo.sql(
+        f"""
         SELECT 
             COUNT(*) as customers_processed,
             MIN(first_purchase_date) as earliest_first_purchase,
             MAX(last_purchase_date) as latest_last_purchase,
             ROUND(AVG(total_spent), 2) as avg_customer_value,
             ROUND(SUM(total_spent), 2) as total_customer_value
-        FROM customer_summary;
-    """)
+        FROM customer_summary
+        """
+    )
+    return
 
-    # Show sample records
-    sample_customers_result = sql("""
+
+@app.cell
+def _(mo):
+    mo.md("""**Top Customers by Spending:**""")
+    return
+
+
+@app.cell
+def _(customer_summary, mo):
+    """Show sample records"""
+    _sample_customers_result = mo.sql(
+        f"""
         SELECT 
             customer_id,
             first_purchase_date,
@@ -1704,35 +1850,28 @@ def _(conn, mo, sql):
             favorite_region
         FROM customer_summary
         ORDER BY total_spent DESC
-        LIMIT 10;
-    """)
-
-    _display = [
-        mo.md("""
-        **✅ UPSERT Operation Completed Successfully!**
-
-        **Summary Statistics:**
-        """),
-        mo.ui.table(upsert_summary_result.value),
-        mo.md("""
-
-        **Top Customers by Spending:**
-        """),
-        mo.ui.table(sample_customers_result.value),
-        mo.md("""
-
-        **🎯 UPSERT Benefits:**
-        - **Idempotent**: Can run multiple times safely
-        - **Efficient**: Updates only when conflicts occur
-        - **Data Integrity**: Maintains referential consistency
-        - **Flexible**: Handles both new and existing records
-        """),
-    ]
+        LIMIT 10
+        """
+    )
     return
 
 
 @app.cell
-def _(conn, mo, sql):
+def _(mo):
+    mo.md(
+        """
+    **🎯 UPSERT Benefits:**
+    - **Idempotent**: Can run multiple times safely
+    - **Efficient**: Updates only when conflicts occur
+    - **Data Integrity**: Maintains referential consistency
+    - **Flexible**: Handles both new and existing records
+    """
+    )
+    return
+
+
+@app.cell
+def _(conn, mo, product_metrics):
     """
     ### Advanced UPSERT with Conditional Logic
     """
@@ -1794,7 +1933,7 @@ def _(conn, mo, sql):
     conn.execute(conditional_upsert_query)
 
     # Analyze results
-    product_summary_result = sql("""
+    product_summary_result = mo.sql(f"""
         SELECT 
             COUNT(*) as products_analyzed,
             ROUND(SUM(total_revenue), 2) as total_product_revenue,
@@ -1806,7 +1945,7 @@ def _(conn, mo, sql):
     """)
 
     # Top performing products
-    top_products_result = sql("""
+    top_products_result = mo.sql(f"""
         SELECT 
             product_id,
             total_revenue,
@@ -1851,7 +1990,7 @@ def _(conn, mo, sql):
 
 
 @app.cell
-def _(conn, mo, sql):
+def _(conn, mo, sync_metadata):
     """
     ### Incremental Update Pattern with Metadata Tracking
     """
@@ -1918,7 +2057,7 @@ def _(conn, mo, sql):
     ON CONFLICT (table_name) DO NOTHING;
     """)
 
-    sync_status_result = sql("""
+    sync_status_result = mo.sql(f"""
         SELECT 
             table_name,
             last_sync_timestamp,
@@ -1975,7 +2114,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, sql):
+def _(mo):
     """
     ### Query Execution Analysis
     """
@@ -2062,7 +2201,7 @@ def _(mo, sql):
     """
 
     # Execute the complex query
-    performance_result = sql(complex_query)
+    performance_result = mo.sql(f"{complex_query}")
 
     _display = [
         mo.md("""
@@ -2163,7 +2302,7 @@ def _(mo):
 
 
 @app.cell
-def _(complex_query, mo, sql):
+def _(complex_query, mo):
     """
     ### Debugging Complex Queries - Step-by-Step Approach
     """
@@ -2238,7 +2377,7 @@ def _(complex_query, mo, sql):
     """
     )
 
-    validation_result = sql(validation_query)
+    validation_result = mo.sql(f"{validation_query}")
 
     _display = [
         mo.md(f"""
