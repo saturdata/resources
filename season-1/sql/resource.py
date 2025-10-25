@@ -276,11 +276,11 @@ def _(mo, transactions):
             customer_id,
             total_spent,
             transaction_count,
-            RANK() OVER (ORDER BY total_spent DESC) as rank_with_gaps,
-            DENSE_RANK() OVER (ORDER BY total_spent DESC) as dense_rank,
-            NTILE(5) OVER (ORDER BY total_spent DESC) as quintile
+            RANK() OVER (ORDER BY transaction_count DESC) as rank_with_gaps,
+            DENSE_RANK() OVER (ORDER BY transaction_count DESC) as dense_rank,
+            NTILE(5) OVER (ORDER BY transaction_count DESC) as quintile
         FROM customer_spending
-        ORDER BY total_spent DESC
+        ORDER BY transaction_count DESC, customer_id
         LIMIT 20
         """
     )
@@ -292,6 +292,7 @@ def _(mo):
     mo.md(
         """
     🎯 **Understanding the Differences:**
+    - **ROW_NUMBER()**: Always increments sequentially (1, 2, 3, 4, 5...) even with ties - each row gets a unique number
     - **RANK()**: Leaves gaps after tied values (1, 2, 2, 4, 5...)
     - **DENSE_RANK()**: No gaps after tied values (1, 2, 2, 3, 4...)
     - **NTILE(5)**: Divides data into 5 equal-sized groups (quintiles)
