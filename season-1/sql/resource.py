@@ -360,9 +360,9 @@ def _(mo, window_agg_result):
     **📈 Running Calculations and Moving Averages Results:**
 
     **Dataset Overview:**
-    - **Total Days:** {len(window_agg_result.value)}
-    - **Total Revenue:** ${window_agg_result.value["cumulative_revenue"].iloc[-1]:,.2f}
-    - **Average Daily Revenue:** ${window_agg_result.value["daily_revenue"].mean():,.2f}
+        - **Total Days:** {window_agg_result.height}
+        - **Total Revenue:** ${window_agg_result.select("cumulative_revenue").tail(1).item():,.2f}
+        - **Average Daily Revenue:** ${window_agg_result["daily_revenue"].mean():,.2f}
 
     🔍 **Window Frame Explanation:**
     - `ROWS UNBOUNDED PRECEDING`: From start to current row (running total)
