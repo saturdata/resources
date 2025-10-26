@@ -1030,7 +1030,6 @@ def _():
                 formatted_lines.append(f"  • {detail}")
 
         return "\n".join(formatted_lines)
-
     return format_query_plan, format_query_plan_tree
 
 
@@ -1443,7 +1442,6 @@ def _(conn, pl, transactions):
 
     # Register the DataFrame with DuckDB for mo.sql() queries
     conn.register("customer_summary", customer_summary)
-
     return (customer_summary,)
 
 
@@ -1473,7 +1471,6 @@ def _(conn, pl, transactions):
 
     # Register the DataFrame with DuckDB for mo.sql() queries
     conn.register("product_metrics", product_metrics)
-
     return (product_metrics,)
 
 
@@ -1498,7 +1495,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, customer_summary):
+def _(customer_summary, mo):
     """Demonstrate UPSERT concept with Polars DataFrames"""
     mo.md(f"""
     **📊 Customer Summary Data Created Successfully!**
@@ -1625,7 +1622,6 @@ def _(conn, pl):
 
     # Register the DataFrame with DuckDB for mo.sql() queries
     conn.register("sync_metadata", sync_metadata)
-
     return (sync_metadata,)
 
 
@@ -1985,12 +1981,12 @@ def _(complex_query, mo):
 @app.cell
 def _(mo):
     """
-    # Summary and Next Steps
+    # Summary
 
     Wrapping up our comprehensive SQL learning journey.
     """
     mo.md("""
-    ## 🎯 Learning Summary and Next Steps
+    ## 🎯 Learning Summary
 
     Congratulations! You've completed a comprehensive journey through advanced SQL concepts.
     """)
