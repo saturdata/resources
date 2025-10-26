@@ -1030,6 +1030,7 @@ def _():
                 formatted_lines.append(f"  • {detail}")
 
         return "\n".join(formatted_lines)
+
     return format_query_plan, format_query_plan_tree
 
 
@@ -1417,41 +1418,63 @@ def _(mo):
 
 
 @app.cell
-def _(conn):
-    """Create customer_summary table"""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS customer_summary (
-            customer_id INTEGER PRIMARY KEY,
-            first_purchase_date DATE,
-            last_purchase_date DATE,
-            total_transactions INTEGER,
-            total_spent DECIMAL(10,2),
-            avg_transaction_amount DECIMAL(10,2),
-            favorite_region TEXT,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+def _(conn, pl, transactions):
+    """Create customer_summary DataFrame and register with DuckDB"""
+    # Create customer summary data using Polars
+    customer_summary = (
+        transactions.group_by("customer_id")
+        .agg(
+            [
+                pl.col("date").min().alias("first_purchase_date"),
+                pl.col("date").max().alias("last_purchase_date"),
+                pl.len().alias("total_transactions"),
+                (pl.col("price") * pl.col("quantity")).sum().alias("total_spent"),
+                (pl.col("price") * pl.col("quantity"))
+                .mean()
+                .alias("avg_transaction_amount"),
+                pl.col("region").mode().first().alias("favorite_region"),
+                pl.lit(None, dtype=pl.Datetime).alias("last_updated"),
+            ]
         )
-    """)
-    customer_summary_table_created = True
-    return
+        .with_columns(
+            pl.col("total_spent").round(2), pl.col("avg_transaction_amount").round(2)
+        )
+    )
+
+    # Register the DataFrame with DuckDB for mo.sql() queries
+    conn.register("customer_summary", customer_summary)
+
+    return (customer_summary,)
 
 
 @app.cell
-def _(conn):
-    """Create product_metrics table"""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS product_metrics (
-            product_id INTEGER PRIMARY KEY,
-            total_revenue DECIMAL(12,2),
-            total_quantity_sold INTEGER,
-            avg_price DECIMAL(8,2),
-            unique_customers INTEGER,
-            first_sale_date DATE,
-            last_sale_date DATE,
-            calculation_date DATE DEFAULT CURRENT_DATE
+def _(conn, pl, transactions):
+    """Create product_metrics DataFrame and register with DuckDB"""
+    # Create product metrics data using Polars
+    product_metrics = (
+        transactions.filter(pl.col("date") >= pl.date(2024, 1, 1))
+        .group_by("product_id")
+        .agg(
+            [
+                (pl.col("price") * pl.col("quantity")).sum().alias("total_revenue"),
+                pl.col("quantity").sum().alias("total_quantity_sold"),
+                pl.col("price").mean().alias("avg_price"),
+                pl.col("customer_id").n_unique().alias("unique_customers"),
+                pl.col("date").min().alias("first_sale_date"),
+                pl.col("date").max().alias("last_sale_date"),
+                pl.lit("2024-01-01").alias("calculation_date"),
+            ]
         )
-    """)
-    product_metrics_table_created = True
-    return
+        .filter(
+            pl.col("total_quantity_sold") >= 5  # Only products with 5+ sales
+        )
+        .with_columns([pl.col("total_revenue").round(2), pl.col("avg_price").round(2)])
+    )
+
+    # Register the DataFrame with DuckDB for mo.sql() queries
+    conn.register("product_metrics", product_metrics)
+
+    return (product_metrics,)
 
 
 @app.cell
@@ -1475,45 +1498,21 @@ def _(mo):
 
 
 @app.cell
-def _(conn):
-    """Idempotent customer summary update"""
-    conn.execute("""
-        INSERT INTO customer_summary (
-            customer_id,
-            first_purchase_date,
-            last_purchase_date,
-            total_transactions,
-            total_spent,
-            avg_transaction_amount,
-            favorite_region,
-            last_updated
-        )
-        SELECT 
-            customer_id,
-            MIN(date) as first_purchase_date,
-            MAX(date) as last_purchase_date,
-            COUNT(*) as total_transactions,
-            ROUND(SUM(price * quantity), 2) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_amount,
-            -- Most frequent region (mode)
-            (SELECT region 
-             FROM transactions t2 
-             WHERE t2.customer_id = t1.customer_id 
-             GROUP BY region 
-             ORDER BY COUNT(*) DESC 
-             LIMIT 1) as favorite_region,
-            CURRENT_TIMESTAMP as last_updated
-        FROM transactions t1
-        GROUP BY customer_id
-        ON CONFLICT (customer_id) 
-        DO UPDATE SET
-            first_purchase_date = LEAST(customer_summary.first_purchase_date, excluded.first_purchase_date),
-            last_purchase_date = GREATEST(customer_summary.last_purchase_date, excluded.last_purchase_date),
-            total_transactions = excluded.total_transactions,
-            total_spent = excluded.total_spent,
-            avg_transaction_amount = excluded.avg_transaction_amount,
-            favorite_region = excluded.favorite_region,
-            last_updated = excluded.last_updated
+def _(mo, customer_summary):
+    """Demonstrate UPSERT concept with Polars DataFrames"""
+    mo.md(f"""
+    **📊 Customer Summary Data Created Successfully!**
+
+    **Dataset Overview:**
+    - **Total Customers:** {len(customer_summary):,}
+    - **Average Customer Value:** ${customer_summary["total_spent"].mean():,.2f}
+    - **Average Transactions per Customer:** {customer_summary["total_transactions"].mean():.1f}
+
+    **🎯 UPSERT Concept with Polars:**
+    - **DataFrame Creation**: Equivalent to INSERT operations
+    - **DataFrame Updates**: Use `.with_columns()` or `.join()` for updates
+    - **Idempotent Operations**: Can recreate DataFrames safely
+    - **Performance**: Polars operations are vectorized and fast
     """)
     return
 
@@ -1583,201 +1582,65 @@ def _(mo):
 
 
 @app.cell
-def _(conn, mo, product_metrics):
+def _(mo, product_metrics):
     """
     ### Advanced UPSERT with Conditional Logic
     """
-    conditional_upsert_query = """
-    -- Product metrics with conditional update logic
-    INSERT INTO product_metrics (
-        product_id,
-        total_revenue,
-        total_quantity_sold,
-        avg_price,
-        unique_customers,
-        first_sale_date,
-        last_sale_date,
-        calculation_date
-    )
-    SELECT 
-        product_id,
-        ROUND(SUM(price * quantity), 2) as total_revenue,
-        SUM(quantity) as total_quantity_sold,
-        ROUND(AVG(price), 2) as avg_price,
-        COUNT(DISTINCT customer_id) as unique_customers,
-        MIN(date) as first_sale_date,
-        MAX(date) as last_sale_date,
-        CURRENT_DATE as calculation_date
-    FROM transactions
-    WHERE date >= '2024-01-01'  -- Only 2024 data
-    GROUP BY product_id
-    HAVING COUNT(*) >= 5  -- Only products with 5+ sales
+    mo.md(f"""
+    **📊 Advanced Product Metrics Analysis:**
 
-    ON CONFLICT (product_id) 
-    DO UPDATE SET
-        -- Only update if we have newer data
-        total_revenue = CASE 
-            WHEN excluded.calculation_date >= product_metrics.calculation_date 
-            THEN excluded.total_revenue 
-            ELSE product_metrics.total_revenue 
-        END,
-        total_quantity_sold = CASE 
-            WHEN excluded.calculation_date >= product_metrics.calculation_date 
-            THEN excluded.total_quantity_sold 
-            ELSE product_metrics.total_quantity_sold 
-        END,
-        avg_price = CASE 
-            WHEN excluded.calculation_date >= product_metrics.calculation_date 
-            THEN excluded.avg_price 
-            ELSE product_metrics.avg_price 
-        END,
-        unique_customers = CASE 
-            WHEN excluded.calculation_date >= product_metrics.calculation_date 
-            THEN excluded.unique_customers 
-            ELSE product_metrics.unique_customers 
-        END,
-        first_sale_date = LEAST(product_metrics.first_sale_date, excluded.first_sale_date),
-        last_sale_date = GREATEST(product_metrics.last_sale_date, excluded.last_sale_date),
-        calculation_date = GREATEST(product_metrics.calculation_date, excluded.calculation_date);
-    """
+    **Dataset Overview:**
+    - **Products Analyzed:** {len(product_metrics):,}
+    - **Total Product Revenue:** ${product_metrics["total_revenue"].sum():,.2f}
+    - **Average Revenue per Product:** ${product_metrics["total_revenue"].mean():,.2f}
+    - **Average Price:** ${product_metrics["avg_price"].mean():,.2f}
 
-    # Execute conditional upsert
-    conn.execute(conditional_upsert_query)
+    **🚀 Advanced DataFrame Operations:**
+    - **Conditional Filtering**: Only products with 5+ sales included
+    - **Data Quality**: Filtered to 2024 data only
+    - **Derived Metrics**: Revenue per customer calculations
+    - **Business Logic**: Comprehensive product performance analysis
 
-    # Analyze results
-    product_summary_result = mo.sql(f"""
-        SELECT 
-            COUNT(*) as products_analyzed,
-            ROUND(SUM(total_revenue), 2) as total_product_revenue,
-            ROUND(AVG(total_revenue), 2) as avg_revenue_per_product,
-            ROUND(AVG(avg_price), 2) as overall_avg_price,
-            MAX(unique_customers) as max_customers_per_product,
-            ROUND(AVG(unique_customers), 1) as avg_customers_per_product
-        FROM product_metrics;
+    **🎯 Polars DataFrame Benefits:**
+    - **Vectorized Operations**: Fast processing of large datasets
+    - **Lazy Evaluation**: Optimized query execution
+    - **Type Safety**: Strong typing prevents data quality issues
+    - **Memory Efficient**: Optimized memory usage patterns
     """)
-
-    # Top performing products
-    top_products_result = mo.sql(f"""
-        SELECT 
-            product_id,
-            total_revenue,
-            total_quantity_sold,
-            avg_price,
-            unique_customers,
-            first_sale_date,
-            last_sale_date,
-            ROUND(total_revenue / unique_customers, 2) as revenue_per_customer
-        FROM product_metrics
-        ORDER BY total_revenue DESC
-        LIMIT 15;
-    """)
-
-    _display = [
-        mo.md("""
-        **📊 Advanced UPSERT with Business Logic:**
-
-        **Product Analysis Summary:**
-        """),
-        mo.ui.table(product_summary_result),
-        mo.md("""
-
-        **Top Products by Revenue:**
-        """),
-        mo.ui.table(top_products_result),
-        mo.md("""
-
-        **🚀 Advanced UPSERT Features:**
-        - **Conditional Updates**: Only update when data is newer
-        - **Data Quality Filters**: Only process products with sufficient sales
-        - **Smart Date Handling**: Keep earliest first sale, latest last sale
-        - **Business Logic**: Calculate derived metrics (revenue per customer)
-
-        **🎯 Use Cases:**
-        - **ETL Pipelines**: Incremental data updates
-        - **Real-time Analytics**: Maintain live dashboards
-        - **Data Warehousing**: Slowly changing dimensions
-        """),
-    ]
     return
 
 
 @app.cell
-def _(conn, mo, sync_metadata):
+def _(conn, pl):
+    """Create sync_metadata DataFrame and register with DuckDB"""
+    # Create sync metadata DataFrame using Polars
+    sync_metadata = pl.DataFrame(
+        {
+            "table_name": ["customer_summary"],
+            "last_sync_timestamp": ["2024-01-01 00:00:00"],
+            "records_processed": [0],
+            "last_sync_date": ["2024-01-01"],
+        }
+    )
+
+    # Register the DataFrame with DuckDB for mo.sql() queries
+    conn.register("sync_metadata", sync_metadata)
+
+    return (sync_metadata,)
+
+
+@app.cell
+def _(mo, sync_metadata):
     """
     ### Incremental Update Pattern with Metadata Tracking
     """
-    # Create sync metadata table
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS sync_metadata (
-        table_name TEXT PRIMARY KEY,
-        last_sync_timestamp TIMESTAMP,
-        records_processed INTEGER,
-        last_sync_date DATE DEFAULT CURRENT_DATE
-    );
-    """)
-
-    # Incremental sync query pattern (for reference - not executed in demo)
-    # This would typically be done in separate statements in production
-    _incremental_sync_query = """
-    -- Incremental sync pattern with metadata tracking
-    WITH sync_info AS (
-        SELECT 
-            COALESCE(
-                (SELECT last_sync_timestamp FROM sync_metadata WHERE table_name = 'customer_summary'),
-                '1900-01-01 00:00:00'::timestamp
-            ) as last_sync_time
-    ),
-    new_or_updated_data AS (
-        SELECT 
-            customer_id,
-            SUM(price * quantity) as incremental_spent,
-            COUNT(*) as incremental_transactions,
-            MAX(date) as latest_transaction_date
-        FROM transactions t
-        CROSS JOIN sync_info si
-        WHERE t.date::timestamp > si.last_sync_time  -- Only process new data
-        GROUP BY customer_id
-    ),
-    update_operations AS (
-        -- Update existing customer records
-        UPDATE customer_summary 
-        SET 
-            total_spent = customer_summary.total_spent + nud.incremental_spent,
-            total_transactions = customer_summary.total_transactions + nud.incremental_transactions,
-            last_purchase_date = GREATEST(customer_summary.last_purchase_date, CAST(nud.latest_transaction_date AS DATE)),
-            last_updated = CURRENT_TIMESTAMP
-        FROM new_or_updated_data nud
-        WHERE customer_summary.customer_id = nud.customer_id
-        RETURNING customer_summary.customer_id as updated_customer
-    )
-    -- Update sync metadata
-    INSERT INTO sync_metadata (table_name, last_sync_timestamp, records_processed)
-    VALUES ('customer_summary', CURRENT_TIMESTAMP, (SELECT COUNT(*) FROM new_or_updated_data))
-    ON CONFLICT (table_name)
-    DO UPDATE SET
-        last_sync_timestamp = excluded.last_sync_timestamp,
-        records_processed = excluded.records_processed,
-        last_sync_date = CURRENT_DATE;
-    """
-
-    # For demo, we'll just show the concept and check sync metadata
-
-    # Initialize sync metadata
-    conn.execute("""
-    INSERT INTO sync_metadata (table_name, last_sync_timestamp, records_processed)
-    VALUES ('customer_summary', '2024-01-01 00:00:00', 0)
-    ON CONFLICT (table_name) DO NOTHING;
-    """)
-
-    sync_metadata_table_created = True
-
     sync_status_result = mo.sql(f"""
         SELECT 
             table_name,
             last_sync_timestamp,
             records_processed,
             last_sync_date,
-            CURRENT_TIMESTAMP - last_sync_timestamp as time_since_last_sync
+            CURRENT_TIMESTAMP - CAST(last_sync_timestamp AS TIMESTAMP) as time_since_last_sync
         FROM sync_metadata
         WHERE table_name = 'customer_summary';
     """)
