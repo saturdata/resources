@@ -79,7 +79,7 @@ def _(duckdb, mo):
     - Use `mo.sql(f"...")` to execute queries with f-string interpolation
     - Results have a `.value` attribute containing the dataframe
     """)
-    return (conn,)
+    return
 
 
 @app.cell
@@ -1400,138 +1400,59 @@ def _(mo):
     """
     # Idempotent Operations
 
-    Building robust, repeatable data operations that can be run multiple times safely.
+    Understanding the difference between operations that can be safely repeated vs those that create duplicates.
     """
     mo.md("""
     ## ♻️ Idempotent Operations
 
-    Creating data operations that produce the same result regardless of how many times they're executed.
+    Learning the difference between operations that produce the same result when run multiple times (idempotent) 
+    versus those that create duplicates or errors (not idempotent).
     """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Setting Up Tables for UPSERT Examples""")
+    mo.md("""### INSERT INTO - Not Idempotent (Creates Duplicates)""")
     return
 
 
 @app.cell
-def _(conn, pl, transactions):
-    """Create customer_summary DataFrame and register with DuckDB"""
-    # Create customer summary data using Polars
-    customer_summary = (
-        transactions.group_by("customer_id")
-        .agg(
-            [
-                pl.col("date").min().alias("first_purchase_date"),
-                pl.col("date").max().alias("last_purchase_date"),
-                pl.len().alias("total_transactions"),
-                (pl.col("price") * pl.col("quantity")).sum().alias("total_spent"),
-                (pl.col("price") * pl.col("quantity"))
-                .mean()
-                .alias("avg_transaction_amount"),
-                pl.col("region").mode().first().alias("favorite_region"),
-                pl.lit(None, dtype=pl.Datetime).alias("last_updated"),
-            ]
-        )
-        .with_columns(
-            pl.col("total_spent").round(2), pl.col("avg_transaction_amount").round(2)
-        )
-    )
-
-    # Register the DataFrame with DuckDB for mo.sql() queries
-    conn.register("customer_summary", customer_summary)
-    return (customer_summary,)
-
-
-@app.cell
-def _(conn, pl, transactions):
-    """Create product_metrics DataFrame and register with DuckDB"""
-    # Create product metrics data using Polars
-    product_metrics = (
-        transactions.filter(pl.col("date") >= pl.date(2024, 1, 1))
-        .group_by("product_id")
-        .agg(
-            [
-                (pl.col("price") * pl.col("quantity")).sum().alias("total_revenue"),
-                pl.col("quantity").sum().alias("total_quantity_sold"),
-                pl.col("price").mean().alias("avg_price"),
-                pl.col("customer_id").n_unique().alias("unique_customers"),
-                pl.col("date").min().alias("first_sale_date"),
-                pl.col("date").max().alias("last_sale_date"),
-                pl.lit("2024-01-01").alias("calculation_date"),
-            ]
-        )
-        .filter(
-            pl.col("total_quantity_sold") >= 5  # Only products with 5+ sales
-        )
-        .with_columns([pl.col("total_revenue").round(2), pl.col("avg_price").round(2)])
-    )
-
-    # Register the DataFrame with DuckDB for mo.sql() queries
-    conn.register("product_metrics", product_metrics)
-    return (product_metrics,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        """
-    **🛠️ Created Tables for UPSERT Examples:**
-    - `customer_summary`: Aggregated customer metrics
-    - `product_metrics`: Product performance statistics
-
-    These tables will demonstrate idempotent insert/update operations.
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md("""### Basic UPSERT Pattern - Customer Summary""")
-    return
-
-
-@app.cell
-def _(customer_summary, mo):
-    """Demonstrate UPSERT concept with Polars DataFrames"""
-    mo.md(f"""
-    **📊 Customer Summary Data Created Successfully!**
-
-    **Dataset Overview:**
-    - **Total Customers:** {len(customer_summary):,}
-    - **Average Customer Value:** ${customer_summary["total_spent"].mean():,.2f}
-    - **Average Transactions per Customer:** {customer_summary["total_transactions"].mean():.1f}
-
-    **🎯 UPSERT Concept with Polars:**
-    - **DataFrame Creation**: Equivalent to INSERT operations
-    - **DataFrame Updates**: Use `.with_columns()` or `.join()` for updates
-    - **Idempotent Operations**: Can recreate DataFrames safely
-    - **Performance**: Polars operations are vectorized and fast
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md("""**Summary Statistics:**""")
-    return
-
-
-@app.cell
-def _(customer_summary, mo):
-    """Check UPSERT results"""
-    _upsert_summary_result = mo.sql(
+def _(mo, transactions):
+    """Demonstrate INSERT INTO creating duplicates on multiple runs"""
+    # Create a simple table to demonstrate INSERT INTO behavior
+    _insert_demo_result = mo.sql(
         f"""
-        SELECT 
-            COUNT(*) as customers_processed,
-            MIN(first_purchase_date) as earliest_first_purchase,
-            MAX(last_purchase_date) as latest_last_purchase,
-            ROUND(AVG(total_spent), 2) as avg_customer_value,
-            ROUND(SUM(total_spent), 2) as total_customer_value
-        FROM customer_summary
+        -- First, let's see what happens with INSERT INTO
+        -- This operation is NOT idempotent - running it multiple times creates duplicates
+
+        CREATE TABLE IF NOT EXISTS customer_sample AS
+        SELECT DISTINCT customer_id, region
+        FROM transactions 
+        WHERE date >= '2024-01-01'
+        LIMIT 5;
+
+        -- Show the current state
+        SELECT 'Current table state:' as status, COUNT(*) as row_count FROM customer_sample;
+        """
+    )
+    return (customer_sample,)
+
+
+@app.cell
+def _(mo):
+    mo.md("""**Current Table Contents:**""")
+    return
+
+
+@app.cell
+def _(customer_sample, mo):
+    """Show current table contents"""
+    _current_contents = mo.sql(
+        f"""
+        SELECT customer_id, region 
+        FROM customer_sample 
+        ORDER BY customer_id;
         """
     )
     return
@@ -1539,26 +1460,56 @@ def _(customer_summary, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""**Top Customers by Spending:**""")
+    mo.md("""### CREATE TABLE AS - Idempotent (Same Result Every Time)""")
     return
 
 
 @app.cell
-def _(customer_summary, mo):
-    """Show sample records"""
-    _sample_customers_result = mo.sql(
+def _(mo, transactions):
+    """Demonstrate CREATE TABLE AS being idempotent"""
+    _create_table_demo_result = mo.sql(
+        f"""
+        -- CREATE TABLE AS is idempotent - running it multiple times produces the same result
+        -- (assuming the source data hasn't changed)
+
+        CREATE OR REPLACE TABLE customer_summary_idempotent AS
+        SELECT 
+            customer_id,
+            region,
+            COUNT(*) as transaction_count,
+            SUM(price * quantity) as total_spent,
+            ROUND(AVG(price * quantity), 2) as avg_transaction_amount
+        FROM transactions 
+        WHERE date >= '2024-01-01'
+        GROUP BY customer_id, region
+        ORDER BY total_spent DESC
+        LIMIT 10;
+
+        SELECT 'Idempotent operation completed' as status, COUNT(*) as row_count FROM customer_summary_idempotent;
+        """
+    )
+    return (customer_summary_idempotent,)
+
+
+@app.cell
+def _(mo):
+    mo.md("""**Idempotent Table Contents:**""")
+    return
+
+
+@app.cell
+def _(customer_summary_idempotent, mo):
+    """Show idempotent table contents"""
+    _idempotent_contents = mo.sql(
         f"""
         SELECT 
             customer_id,
-            first_purchase_date,
-            last_purchase_date,
-            total_transactions,
+            region,
+            transaction_count,
             total_spent,
-            avg_transaction_amount,
-            favorite_region
-        FROM customer_summary
-        ORDER BY total_spent DESC
-        LIMIT 10
+            avg_transaction_amount
+        FROM customer_summary_idempotent 
+        ORDER BY total_spent DESC;
         """
     )
     return
@@ -1568,106 +1519,23 @@ def _(customer_summary, mo):
 def _(mo):
     mo.md(
         """
-    **🎯 UPSERT Benefits:**
-    - **Idempotent**: Can run multiple times safely
-    - **Efficient**: Updates only when conflicts occur
-    - **Data Integrity**: Maintains referential consistency
-    - **Flexible**: Handles both new and existing records
+    **🎯 Key Differences:**
+
+    **INSERT INTO (Not Idempotent):**
+    - ❌ **Creates Duplicates**: Running multiple times adds the same data repeatedly
+    - ❌ **Data Integrity Issues**: Can lead to inconsistent results
+    - ❌ **Manual Cleanup**: Requires checking for existing data before inserting
+
+    **CREATE TABLE AS (Idempotent):**
+    - ✅ **Consistent Results**: Always produces the same output
+    - ✅ **Safe to Rerun**: Can execute multiple times without side effects
+    - ✅ **Data Pipeline Friendly**: Perfect for ETL processes and scheduled jobs
+
+    **💡 When to Use Each:**
+    - **INSERT INTO**: When you need to add new records to existing data
+    - **CREATE TABLE AS**: When you want to create/refresh a complete dataset
     """
     )
-    return
-
-
-@app.cell
-def _(mo, product_metrics):
-    """
-    ### Advanced UPSERT with Conditional Logic
-    """
-    mo.md(f"""
-    **📊 Advanced Product Metrics Analysis:**
-
-    **Dataset Overview:**
-    - **Products Analyzed:** {len(product_metrics):,}
-    - **Total Product Revenue:** ${product_metrics["total_revenue"].sum():,.2f}
-    - **Average Revenue per Product:** ${product_metrics["total_revenue"].mean():,.2f}
-    - **Average Price:** ${product_metrics["avg_price"].mean():,.2f}
-
-    **🚀 Advanced DataFrame Operations:**
-    - **Conditional Filtering**: Only products with 5+ sales included
-    - **Data Quality**: Filtered to 2024 data only
-    - **Derived Metrics**: Revenue per customer calculations
-    - **Business Logic**: Comprehensive product performance analysis
-
-    **🎯 Polars DataFrame Benefits:**
-    - **Vectorized Operations**: Fast processing of large datasets
-    - **Lazy Evaluation**: Optimized query execution
-    - **Type Safety**: Strong typing prevents data quality issues
-    - **Memory Efficient**: Optimized memory usage patterns
-    """)
-    return
-
-
-@app.cell
-def _(conn, pl):
-    """Create sync_metadata DataFrame and register with DuckDB"""
-    # Create sync metadata DataFrame using Polars
-    sync_metadata = pl.DataFrame(
-        {
-            "table_name": ["customer_summary"],
-            "last_sync_timestamp": ["2024-01-01 00:00:00"],
-            "records_processed": [0],
-            "last_sync_date": ["2024-01-01"],
-        }
-    )
-
-    # Register the DataFrame with DuckDB for mo.sql() queries
-    conn.register("sync_metadata", sync_metadata)
-    return (sync_metadata,)
-
-
-@app.cell
-def _(mo, sync_metadata):
-    """
-    ### Incremental Update Pattern with Metadata Tracking
-    """
-    sync_status_result = mo.sql(f"""
-        SELECT 
-            table_name,
-            last_sync_timestamp,
-            records_processed,
-            last_sync_date,
-            CURRENT_TIMESTAMP - CAST(last_sync_timestamp AS TIMESTAMP) as time_since_last_sync
-        FROM sync_metadata
-        WHERE table_name = 'customer_summary';
-    """)
-
-    _display = [
-        mo.md("""
-        **⏱️ Incremental Sync Pattern with Metadata Tracking:**
-
-        **Sync Status:**
-        """),
-        mo.ui.table(sync_status_result),
-        mo.md("""
-
-        **🔄 Incremental Sync Benefits:**
-        - **Efficiency**: Process only new/changed data
-        - **Scalability**: Handle large datasets without full refresh
-        - **Reliability**: Track sync status and recovery points
-        - **Auditability**: Maintain processing history
-
-        **🛠️ Implementation Pattern:**
-        1. **Check Metadata**: Determine last sync timestamp
-        2. **Filter Data**: Process only records newer than last sync
-        3. **Apply Changes**: Update existing records incrementally
-        4. **Update Metadata**: Record successful sync completion
-
-        **💼 Real-World Applications:**
-        - **ETL Pipelines**: Daily/hourly data updates
-        - **Data Replication**: Sync between systems
-        - **Change Data Capture**: Track and apply data changes
-        """),
-    ]
     return
 
 
@@ -2024,10 +1892,10 @@ def _(mo, taxi_summary_result, transactions):
     - Business applications for data transformation
 
     **5. Idempotent Operations**
-    - UPSERT patterns with ON CONFLICT
-    - Conditional update logic
-    - Incremental sync patterns with metadata tracking
-    - Data pipeline reliability techniques
+    - INSERT INTO vs CREATE TABLE AS comparison
+    - Understanding idempotent vs non-idempotent operations
+    - Safe data pipeline patterns
+    - Avoiding duplicate data issues
 
     **6. Performance Optimization**
     - Query execution analysis
