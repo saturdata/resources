@@ -1030,7 +1030,6 @@ def _():
                 formatted_lines.append(f"  • {detail}")
 
         return "\n".join(formatted_lines)
-
     return format_query_plan, format_query_plan_tree
 
 
@@ -1560,28 +1559,33 @@ def _(mo):
     """
     ### Query Execution Analysis
     """
-    # Complex analytical query for performance analysis
-    complex_query = """
-    -- Complex analytical query for performance testing
-    WITH customer_behavior AS (
+    mo.md("""
+    **📊 Query Performance Analysis:**
+
+    Let's analyze a moderately complex query to understand performance optimization techniques.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    """Customer segmentation analysis with performance considerations"""
+    # Simplified but still comprehensive query for performance analysis
+    performance_query = """
+    -- Customer segmentation with performance optimization techniques
+    WITH customer_metrics AS (
         SELECT 
             customer_id,
             region,
             COUNT(*) as transaction_count,
             SUM(price * quantity) as total_spent,
             AVG(price * quantity) as avg_transaction,
-            STDDEV(price * quantity) as transaction_stddev,
             MIN(date) as first_purchase,
-            MAX(date) as last_purchase,
-            COUNT(DISTINCT product_id) as unique_products,
-
-            -- Advanced metrics
-            SUM(CASE WHEN promo_code IS NOT NULL THEN 1 ELSE 0 END) as promo_transactions,
-            SUM(CASE WHEN promo_code IS NOT NULL THEN price * quantity ELSE 0 END) as promo_revenue
+            MAX(date) as last_purchase
         FROM transactions
-        WHERE date >= '2024-01-01'
+        WHERE date >= '2024-01-01'  -- Filter early
         GROUP BY customer_id, region
-        HAVING COUNT(*) >= 3  -- Customers with 3+ transactions
+        HAVING COUNT(*) >= 3  -- Filter after aggregation
     ),
     customer_segments AS (
         SELECT 
@@ -1591,82 +1595,46 @@ def _(mo):
                 WHEN total_spent >= 500 THEN 'Medium Value' 
                 ELSE 'Low Value'
             END as value_segment,
-
             CASE
                 WHEN transaction_count >= 15 THEN 'High Frequency'
                 WHEN transaction_count >= 8 THEN 'Medium Frequency'
                 ELSE 'Low Frequency' 
-            END as frequency_segment,
-
-            -- Customer lifetime in days
-            DATEDIFF('day', first_purchase, last_purchase) as customer_lifetime_days,
-
-            -- Promotion usage rate
-            ROUND(promo_transactions * 100.0 / transaction_count, 1) as promo_usage_rate
-        FROM customer_behavior
-    ),
-    segment_analysis AS (
-        SELECT 
-            value_segment,
-            frequency_segment,
-            region,
-            COUNT(*) as customers_in_segment,
-            ROUND(AVG(total_spent), 2) as avg_segment_spending,
-            ROUND(AVG(transaction_count), 1) as avg_segment_frequency,
-            ROUND(AVG(customer_lifetime_days), 1) as avg_segment_lifetime,
-            ROUND(AVG(promo_usage_rate), 1) as avg_promo_usage_rate,
-            ROUND(SUM(total_spent), 2) as total_segment_revenue
-        FROM customer_segments
-        GROUP BY value_segment, frequency_segment, region
+            END as frequency_segment
+        FROM customer_metrics
     )
     SELECT 
         value_segment,
         frequency_segment,
         region,
-        customers_in_segment,
-        avg_segment_spending,
-        avg_segment_frequency,
-        avg_segment_lifetime,
-        avg_promo_usage_rate,
-        total_segment_revenue,
-
-        -- Segment performance metrics
-        ROUND(total_segment_revenue / customers_in_segment, 2) as revenue_per_customer,
-        RANK() OVER (ORDER BY total_segment_revenue DESC) as segment_revenue_rank,
-
-        -- Percentage of total customers and revenue
-        ROUND(customers_in_segment * 100.0 / SUM(customers_in_segment) OVER (), 2) as pct_of_customers,
-        ROUND(total_segment_revenue * 100.0 / SUM(total_segment_revenue) OVER (), 2) as pct_of_revenue
-
-    FROM segment_analysis
-    ORDER BY total_segment_revenue DESC
+        COUNT(*) as customers_in_segment,
+        ROUND(AVG(total_spent), 2) as avg_spending,
+        ROUND(AVG(transaction_count), 1) as avg_frequency,
+        ROUND(SUM(total_spent), 2) as total_revenue,
+        RANK() OVER (ORDER BY SUM(total_spent) DESC) as revenue_rank
+    FROM customer_segments
+    GROUP BY value_segment, frequency_segment, region
+    ORDER BY total_revenue DESC
     """
 
-    # Execute the complex query
-    performance_result = mo.sql(f"{complex_query}")
+    # Execute the query
+    performance_result = mo.sql(f"{performance_query}")
 
-    _display = [
-        mo.md("""
-        **📊 Complex Customer Segmentation Analysis Results:**
-        """),
-        mo.ui.table(performance_result.head(15)),
-        mo.md(f"""
+    mo.md(f"""
+    **📈 Performance Analysis Results:**
 
-        **Query Complexity Analysis:**
-        - **CTEs Used**: 3 (customer_behavior, customer_segments, segment_analysis)
-        - **Aggregation Levels**: Customer → Segment → Regional Summary
-        - **Window Functions**: RANK(), SUM() OVER()
-        - **Advanced Metrics**: Standard deviation, lifetime calculations, percentages
-        - **Total Segments**: {len(performance_result)}
+    **Query Features:**
+    - **CTEs Used**: 2 (customer_metrics, customer_segments)
+    - **Optimization Techniques**: Early filtering, appropriate aggregation
+    - **Window Functions**: RANK() for ranking
+    - **Total Segments**: {len(performance_result)}
 
-        **🎯 Performance Considerations:**
-        - **Multi-level Aggregation**: Can be memory intensive
-        - **Window Functions**: May require sorting operations  
-        - **Complex JOINs**: Between multiple CTEs
-        - **Statistical Functions**: STDDEV requires full data pass
-        """),
-    ]
-    return (complex_query,)
+    **🎯 Performance Techniques Applied:**
+    - **Early Filtering**: `WHERE date >= '2024-01-01'` reduces data before aggregation
+    - **HAVING Clause**: `HAVING COUNT(*) >= 3` filters after grouping appropriately
+    - **Logical CTE Flow**: Each CTE builds systematically on the previous one
+    - **Efficient Window Functions**: Used only in final SELECT
+    """)
+    return (performance_query,)
 
 
 @app.cell
@@ -1728,7 +1696,7 @@ def _(mo):
 
     **⚡ Performance Best Practices Applied:**
 
-    **In Our Complex Query:**
+    **In Our Query:**
     1. **Early Filtering**: `WHERE date >= '2024-01-01'` reduces dataset size
     2. **HAVING Clause**: `HAVING COUNT(*) >= 3` filters after aggregation appropriately
     3. **Logical CTE Flow**: Each CTE builds on the previous one systematically
@@ -1744,11 +1712,11 @@ def _(mo):
 
 
 @app.cell
-def _(complex_query, mo):
+def _(mo):
     """
     ### Debugging Complex Queries - Step-by-Step Approach
     """
-    debugging_demo = """
+    mo.md("""
     **🔍 Debugging Methodology Demonstrated:**
 
     **Step 1: Start Simple**
@@ -1787,8 +1755,13 @@ def _(complex_query, mo):
     FROM customer_segments
     GROUP BY segment;
     ```
-    """
+    """)
+    return
 
+
+@app.cell
+def _(mo, performance_query):
+    """Validation query demonstration"""
     # Demonstrate validation query
     validation_query = (
         """
@@ -1797,12 +1770,12 @@ def _(complex_query, mo):
         value_segment,
         frequency_segment,
         COUNT(*) as segment_count,
-        ROUND(MIN(avg_segment_spending), 2) as min_spending,
-        ROUND(MAX(avg_segment_spending), 2) as max_spending,
-        ROUND(MIN(avg_segment_frequency), 1) as min_frequency,
-        ROUND(MAX(avg_segment_frequency), 1) as max_frequency
+        ROUND(MIN(avg_spending), 2) as min_spending,
+        ROUND(MAX(avg_spending), 2) as max_spending,
+        ROUND(MIN(avg_frequency), 1) as min_frequency,
+        ROUND(MAX(avg_frequency), 1) as max_frequency
     FROM ("""
-        + complex_query
+        + performance_query
         + """) segment_results
     GROUP BY value_segment, frequency_segment
     ORDER BY 
@@ -1820,30 +1793,40 @@ def _(complex_query, mo):
     )
 
     validation_result = mo.sql(f"{validation_query}")
+    return (validation_result,)
 
-    _display = [
-        mo.md(f"""
-        {debugging_demo}
 
-        **✅ Validation Results from Our Complex Query:**
-        """),
-        mo.ui.table(validation_result),
-        mo.md("""
+@app.cell
+def _(mo):
+    mo.md("""**✅ Validation Results from Our Query:**""")
+    return
 
-        **🎯 Validation Insights:**
-        - **Logical Segments**: High Value customers do have higher spending ranges
-        - **Frequency Alignment**: High Frequency customers have higher transaction counts
-        - **Data Quality**: No obvious outliers or data quality issues
-        - **Business Logic**: Segmentation thresholds working as expected
 
-        **🛠️ Debugging Toolkit:**
-        - **COUNT(*)**: Always validate row counts at each step
-        - **MIN/MAX/AVG**: Check ranges make business sense
-        - **LIMIT**: Use small samples during development
-        - **Intermediate CTEs**: Inspect each transformation step
-        - **Data Profiling**: Understand your data distribution patterns
-        """),
-    ]
+@app.cell
+def _(mo, validation_result):
+    """Show validation results"""
+    _validation_table = mo.ui.table(validation_result)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+    **🎯 Validation Insights:**
+    - **Logical Segments**: High Value customers have higher spending ranges
+    - **Frequency Alignment**: High Frequency customers have higher transaction counts
+    - **Data Quality**: No obvious outliers or data quality issues
+    - **Business Logic**: Segmentation thresholds working as expected
+
+    **🛠️ Debugging Toolkit:**
+    - **COUNT(*)**: Always validate row counts at each step
+    - **MIN/MAX/AVG**: Check ranges make business sense
+    - **LIMIT**: Use small samples during development
+    - **Intermediate CTEs**: Inspect each transformation step
+    - **Data Profiling**: Understand your data distribution patterns
+    """
+    )
     return
 
 
