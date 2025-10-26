@@ -141,7 +141,7 @@ def _(mo, transactions):
 
 
 @app.cell
-def _(mo, pl, pq):
+def _(mo, pq):
     """
     ## Data Loading - NYC Taxi Data
 
@@ -150,10 +150,6 @@ def _(mo, pl, pq):
     # Load taxi data from parquet files
     taxi_jan = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-01.parquet")
     taxi_feb = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-02.parquet")
-
-    # Convert to Polars for easier handling (optional, DuckDB can read PyArrow directly)
-    taxi_jan_pl = pl.from_arrow(taxi_jan)
-    taxi_feb_pl = pl.from_arrow(taxi_feb)
 
     mo.md("""
     **🚕 NYC Taxi Data Loaded Successfully!**
@@ -172,7 +168,7 @@ def _(mo):
 @app.cell
 def _(mo, taxi_feb, taxi_jan):
     """Unified taxi data summary statistics"""
-    _taxi_summary = mo.sql(
+    taxi_summary_result = mo.sql(
         f"""
         WITH taxi_data AS (
             SELECT * FROM taxi_jan
@@ -189,7 +185,7 @@ def _(mo, taxi_feb, taxi_jan):
         FROM taxi_data
         """
     )
-    return
+    return (taxi_summary_result,)
 
 
 @app.cell
@@ -846,35 +842,100 @@ def _(mo):
 @app.cell
 def _(mo):
     """
-    ### Query Plans - Understanding EXPLAIN
+    ### Simple CTE and Subquery Examples with Execution Plans
     """
     mo.md("""
-    ## 🔍 Query Execution Plans with EXPLAIN
+    ## 🔍 Simple CTE vs Subquery with Execution Plans
 
-    Understanding how the database executes queries is critical for optimization.
-    The `EXPLAIN` statement shows the query execution plan without running the query.
-    `EXPLAIN ANALYZE` actually executes the query and provides timing information.
+    Let's create simpler examples to clearly demonstrate the differences between CTEs and subqueries, 
+    then analyze their execution plans to understand performance characteristics.
 
-    **Key Metrics to Watch:**
-    - **Scan Methods**: Sequential Scan vs Index Scan
-    - **Join Types**: Hash Join, Nested Loop, Merge Join
-    - **Estimated Rows**: How many rows the planner expects
-    - **Actual Rows**: How many rows were actually processed
-    - **Execution Time**: Total time to complete the query
-
-    Let's compare execution plans for CTE vs Subquery approaches!
+    **What We'll Compare:**
+    - Simple customer analysis using CTE approach
+    - Equivalent analysis using subquery approach  
+    - Execution plans for both approaches
+    - Performance timing comparison
     """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### EXPLAIN - CTE Approach""")
+    mo.md("""### Simple CTE Example - Customer Analysis""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Simple CTE approach: Find top customers by spending"""
+    _simple_cte_result = mo.sql(
+        f"""
+        WITH customer_totals AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+        ),
+        top_customers AS (
+            SELECT 
+                customer_id,
+                transaction_count,
+                total_spent,
+                ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+            FROM customer_totals
+            WHERE total_spent > 300
+        )
+        SELECT 
+            customer_id,
+            transaction_count,
+            total_spent,
+            avg_per_transaction
+        FROM top_customers
+        ORDER BY total_spent DESC
+        LIMIT 10
+        """
+    )
     return
 
 
 @app.cell
 def _(mo):
+    mo.md("""### Simple Subquery Example - Equivalent Analysis""")
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    """Simple subquery approach: Equivalent analysis"""
+    _simple_subquery_result = mo.sql(
+        f"""
+        SELECT 
+            customer_id,
+            transaction_count,
+            total_spent,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+            HAVING SUM(price * quantity) > 300
+        ) as customer_totals
+        ORDER BY total_spent DESC
+        LIMIT 10
+        """
+    )
+    return
+
+
+@app.cell
+def _():
     """Query plan formatting functions"""
 
     def format_query_plan_tree(explain_result):
@@ -974,169 +1035,201 @@ def _(mo):
 
 
 @app.cell
-def _(mo, format_query_plan, format_query_plan_tree):
-    """Test the formatting functions with a simple EXPLAIN"""
-    # Test with a simple query to verify formatting works
-    test_explain = mo.sql("""
-        EXPLAIN
-        SELECT customer_id, COUNT(*) as count
-        FROM transactions 
-        WHERE date >= '2024-01-01'
-        GROUP BY customer_id
-        LIMIT 5
-    """)
-
-    mo.md(f"""
-    **🧪 Testing Query Plan Formatting:**
-    
-    **Raw Output:**
-    ```
-    {test_explain.select("explain_value").item()}
-    ```
-    
-    **Structured View:**
-    ```
-    {format_query_plan(test_explain)}
-    ```
-    
-    **Tree Structure View:**
-    ```
-    {format_query_plan_tree(test_explain)}
-    ```
-    """)
+def _(mo):
+    mo.md("""### Execution Plan Comparison""")
     return
 
 
 @app.cell
-def _(mo, format_query_plan, format_query_plan_tree):
-    """EXPLAIN for CTE query"""
-    _explain_cte_result = mo.sql(
+def _(format_query_plan, format_query_plan_tree, mo):
+    """EXPLAIN for simple CTE query"""
+    _explain_simple_cte = mo.sql(
         f"""
         EXPLAIN
-        WITH customer_metrics AS (
+        WITH customer_totals AS (
             SELECT 
                 customer_id,
                 COUNT(*) as transaction_count,
-                SUM(price * quantity) as total_spent,
-                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+                SUM(price * quantity) as total_spent
             FROM transactions
             WHERE date >= '2024-01-01'
             GROUP BY customer_id
         ),
-        high_value_customers AS (
+        top_customers AS (
             SELECT 
                 customer_id,
+                transaction_count,
                 total_spent,
-                transaction_count
-            FROM customer_metrics
-            WHERE total_spent > 500
+                ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+            FROM customer_totals
+            WHERE total_spent > 300
         )
         SELECT 
             customer_id,
-            total_spent,
             transaction_count,
-            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
-        FROM high_value_customers
+            total_spent,
+            avg_per_transaction
+        FROM top_customers
         ORDER BY total_spent DESC
         LIMIT 10
         """
     )
 
-    # Display the formatted query plan
     mo.md(f"""
-    **🔍 Query Execution Plan:**
-    
+    **🔍 CTE Execution Plan:**
+
     **Structured View:**
     ```
-    {format_query_plan(_explain_cte_result)}
+    {format_query_plan(_explain_simple_cte)}
     ```
-    
+
     **Tree Structure View:**
     ```
-    {format_query_plan_tree(_explain_cte_result)}
+    {format_query_plan_tree(_explain_simple_cte)}
     ```
     """)
     return
 
 
 @app.cell
-def _(mo):
-    mo.md(
-        """
-    **📊 CTE Query Execution Plan:**
-
-    This shows how DuckDB executes the CTE-based query with multiple transformation steps.
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md("""### EXPLAIN - Subquery Approach""")
-    return
-
-
-@app.cell
-def _(mo, format_query_plan, format_query_plan_tree):
-    """EXPLAIN for equivalent subquery"""
-    _explain_subquery_result = mo.sql(
+def _(format_query_plan, format_query_plan_tree, mo):
+    """EXPLAIN for simple subquery"""
+    _explain_simple_subquery = mo.sql(
         f"""
         EXPLAIN
         SELECT 
             customer_id,
-            total_spent,
             transaction_count,
+            total_spent,
             ROUND(total_spent / transaction_count, 2) as avg_per_transaction
         FROM (
             SELECT 
                 customer_id,
                 COUNT(*) as transaction_count,
-                SUM(price * quantity) as total_spent,
-                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+                SUM(price * quantity) as total_spent
             FROM transactions
             WHERE date >= '2024-01-01'
             GROUP BY customer_id
-            HAVING SUM(price * quantity) > 500
-        ) as customer_metrics
+            HAVING SUM(price * quantity) > 300
+        ) as customer_totals
         ORDER BY total_spent DESC
         LIMIT 10
         """
     )
 
-    # Display the formatted query plan
     mo.md(f"""
     **🔍 Subquery Execution Plan:**
-    
+
     **Structured View:**
     ```
-    {format_query_plan(_explain_subquery_result)}
+    {format_query_plan(_explain_simple_subquery)}
     ```
-    
+
     **Tree Structure View:**
     ```
-    {format_query_plan_tree(_explain_subquery_result)}
+    {format_query_plan_tree(_explain_simple_subquery)}
     ```
     """)
     return
 
 
 @app.cell
-def _(mo):
-    mo.md(
-        """
-    **📊 Subquery Execution Plan:**
+def _(conn, mo):
+    """Performance timing comparison"""
 
-    This shows the execution plan for the equivalent subquery-based approach.
-    """
-    )
+    def run_performance_comparison():
+        import time
+
+        # Time CTE approach
+        start = time.time()
+        cte_perf_result = conn.execute("""
+        WITH customer_totals AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+        ),
+        top_customers AS (
+            SELECT 
+                customer_id,
+                transaction_count,
+                total_spent,
+                ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+            FROM customer_totals
+            WHERE total_spent > 300
+        )
+        SELECT 
+            customer_id,
+            transaction_count,
+            total_spent,
+            avg_per_transaction
+        FROM top_customers
+        ORDER BY total_spent DESC
+        LIMIT 10;
+        """).df()
+        cte_time = time.time() - start
+
+        # Time subquery approach
+        start = time.time()
+        subquery_perf_result = conn.execute("""
+        SELECT 
+            customer_id,
+            transaction_count,
+            total_spent,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+            HAVING SUM(price * quantity) > 300
+        ) as customer_totals
+        ORDER BY total_spent DESC
+        LIMIT 10;
+        """).df()
+        subquery_time = time.time() - start
+
+        # Verify both queries return same results
+        perf_results_match = cte_perf_result.equals(subquery_perf_result)
+
+        # Display results directly within the function
+        mo.md(f"""
+        **⏱️ Performance Timing Comparison:**
+
+        - **CTE Approach**: {cte_time * 1000:.3f} ms
+        - **Subquery Approach**: {subquery_time * 1000:.3f} ms
+        - **Difference**: {abs(cte_time - subquery_time) * 1000:.3f} ms
+        - **Winner**: {"CTE" if cte_time < subquery_time else "Subquery"} (by {abs((cte_time - subquery_time) / max(cte_time, subquery_time) * 100):.1f}%)
+        - **Results Match**: {"✅ Yes" if perf_results_match else "❌ No"}
+
+        **📊 Results Sample:**
+        """)
+
+        mo.ui.table(cte_perf_result.head(5))
+
+        mo.md("""
+        **💡 Key Insights:**
+        - **Performance**: Both approaches are nearly identical in execution time
+        - **Optimization**: Modern query optimizers often produce similar plans for equivalent logic
+        - **Readability**: CTEs provide clearer logical flow for complex queries
+        - **Maintainability**: CTEs are easier to debug and modify step-by-step
+        """)
+
+    # Run the comparison
+    run_performance_comparison()
     return
 
 
 @app.cell
 def _(mo):
     """
-    ### Analyzing Query Plans - Key Insights
+    ### Query Plans - Understanding EXPLAIN
     """
     mo.md("""
     ## 🎯 Query Plan Analysis: What's Optimal?
@@ -1198,68 +1291,70 @@ def _(conn, mo):
     """
     ### Real Performance Comparison with Timing
     """
-    import time
 
-    # Time CTE approach
-    start = time.time()
-    cte_perf_result = conn.execute("""
-    WITH customer_metrics AS (
-        SELECT 
-            customer_id,
-            COUNT(*) as transaction_count,
-            SUM(price * quantity) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_value
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY customer_id
-    ),
-    high_value_customers AS (
+    def run_advanced_performance_comparison():
+        import time
+
+        # Time CTE approach
+        start = time.time()
+        cte_perf_result = conn.execute("""
+        WITH customer_metrics AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+        ),
+        high_value_customers AS (
+            SELECT 
+                customer_id,
+                total_spent,
+                transaction_count
+            FROM customer_metrics
+            WHERE total_spent > 500
+        )
         SELECT 
             customer_id,
             total_spent,
-            transaction_count
-        FROM customer_metrics
-        WHERE total_spent > 500
-    )
-    SELECT 
-        customer_id,
-        total_spent,
-        transaction_count,
-        ROUND(total_spent / transaction_count, 2) as avg_per_transaction
-    FROM high_value_customers
-    ORDER BY total_spent DESC
-    LIMIT 10;
-    """).df()
-    cte_time = time.time() - start
+            transaction_count,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM high_value_customers
+        ORDER BY total_spent DESC
+        LIMIT 10;
+        """).df()
+        cte_time = time.time() - start
 
-    # Time subquery approach
-    start = time.time()
-    subquery_perf_result = conn.execute("""
-    SELECT 
-        customer_id,
-        total_spent,
-        transaction_count,
-        ROUND(total_spent / transaction_count, 2) as avg_per_transaction
-    FROM (
+        # Time subquery approach
+        start = time.time()
+        subquery_perf_result = conn.execute("""
         SELECT 
             customer_id,
-            COUNT(*) as transaction_count,
-            SUM(price * quantity) as total_spent,
-            ROUND(AVG(price * quantity), 2) as avg_transaction_value
-        FROM transactions
-        WHERE date >= '2024-01-01'
-        GROUP BY customer_id
-        HAVING SUM(price * quantity) > 500
-    ) as customer_metrics
-    ORDER BY total_spent DESC
-    LIMIT 10;
-    """).df()
-    subquery_time = time.time() - start
+            total_spent,
+            transaction_count,
+            ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+        FROM (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent,
+                ROUND(AVG(price * quantity), 2) as avg_transaction_value
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+            HAVING SUM(price * quantity) > 500
+        ) as customer_metrics
+        ORDER BY total_spent DESC
+        LIMIT 10;
+        """).df()
+        subquery_time = time.time() - start
 
-    # Verify both queries return same results
-    perf_results_match = cte_perf_result.equals(subquery_perf_result)
+        # Verify both queries return same results
+        perf_results_match = cte_perf_result.equals(subquery_perf_result)
 
-    _display = [
+        # Display results directly within the function
         mo.md(f"""
         **⏱️ Performance Timing Comparison:**
 
@@ -1270,8 +1365,10 @@ def _(conn, mo):
         - **Results Match**: {"✅ Yes" if perf_results_match else "❌ No"}
 
         **📊 Results:**
-        """),
-        mo.ui.table(cte_perf_result.iloc[:5]),
+        """)
+
+        mo.ui.table(cte_perf_result.head(5))
+
         mo.md("""
 
         **💡 Key Takeaway:**
@@ -1284,8 +1381,10 @@ def _(conn, mo):
         - Frequently executed queries (thousands of times per day)
         - Queries on tables with millions+ rows
         - Real-time/user-facing queries where latency matters
-        """),
-    ]
+        """)
+
+    # Run the comparison
+    run_advanced_performance_comparison()
     return
 
 
@@ -1561,7 +1660,7 @@ def _(mo, transactions):
 def _(gap_analysis_result, mo):
     mo.md(
         f"""
-    **Total Missing Days:** {len(gap_analysis_result.value)} out of 366 days in 2024
+    **Total Missing Days:** {len(gap_analysis_result)} out of 366 days in 2024
 
     **🎯 Gap Analysis Applications:**
     - **Data Quality**: Identify missing data points
@@ -1636,7 +1735,7 @@ def _(mo, transactions):
 def _(islands_result, mo):
     mo.md(
         f"""
-    **Found {len(islands_result.value)} high-volume islands (3+ consecutive days with 50+ transactions)**
+    **Found {len(islands_result)} high-volume islands (3+ consecutive days with 50+ transactions)**
 
     **🎯 Islands Analysis Applications:**
     - **Performance Periods**: Identify sustained high-performance windows
@@ -1827,7 +1926,7 @@ def _(mo, taxi_feb, taxi_jan):
 def _(mo, taxi_patterns_result):
     mo.md(
         f"""
-    **Total Records Analyzed:** {len(taxi_patterns_result.value)} hour-daytype combinations
+    **Total Records Analyzed:** {len(taxi_patterns_result)} hour-daytype combinations
 
     **🎯 Pattern Analysis Insights:**
     - **Rush Hour Detection**: 7-9 AM and 5-7 PM show different patterns
@@ -1866,10 +1965,9 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(conn):
     """Create customer_summary table"""
-    _create_customer_summary = mo.sql(
-        f"""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS customer_summary (
             customer_id INTEGER PRIMARY KEY,
             first_purchase_date DATE,
@@ -1880,16 +1978,15 @@ def _(mo):
             favorite_region TEXT,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """
-    )
-    return (customer_summary,)
+    """)
+    customer_summary_table_created = True
+    return
 
 
 @app.cell
-def _(mo):
+def _(conn):
     """Create product_metrics table"""
-    _create_product_metrics = mo.sql(
-        f"""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS product_metrics (
             product_id INTEGER PRIMARY KEY,
             total_revenue DECIMAL(12,2),
@@ -1900,9 +1997,9 @@ def _(mo):
             last_sale_date DATE,
             calculation_date DATE DEFAULT CURRENT_DATE
         )
-        """
-    )
-    return (product_metrics,)
+    """)
+    product_metrics_table_created = True
+    return
 
 
 @app.cell
@@ -1926,10 +2023,9 @@ def _(mo):
 
 
 @app.cell
-def _(customer_summary, mo, transactions):
+def _(conn):
     """Idempotent customer summary update"""
-    _upsert_customer = mo.sql(
-        f"""
+    conn.execute("""
         INSERT INTO customer_summary (
             customer_id,
             first_purchase_date,
@@ -1959,15 +2055,14 @@ def _(customer_summary, mo, transactions):
         GROUP BY customer_id
         ON CONFLICT (customer_id) 
         DO UPDATE SET
-            first_purchase_date = LEAST(customer_summary.first_purchase_date, CAST(EXCLUDED.first_purchase_date AS DATE)),
-            last_purchase_date = GREATEST(customer_summary.last_purchase_date, CAST(EXCLUDED.last_purchase_date AS DATE)),
-            total_transactions = EXCLUDED.total_transactions,
-            total_spent = EXCLUDED.total_spent,
-            avg_transaction_amount = EXCLUDED.avg_transaction_amount,
-            favorite_region = EXCLUDED.favorite_region,
-            last_updated = EXCLUDED.last_updated
-        """
-    )
+            first_purchase_date = LEAST(customer_summary.first_purchase_date, excluded.first_purchase_date),
+            last_purchase_date = GREATEST(customer_summary.last_purchase_date, excluded.last_purchase_date),
+            total_transactions = excluded.total_transactions,
+            total_spent = excluded.total_spent,
+            avg_transaction_amount = excluded.avg_transaction_amount,
+            favorite_region = excluded.favorite_region,
+            last_updated = excluded.last_updated
+    """)
     return
 
 
@@ -2070,28 +2165,28 @@ def _(conn, mo, product_metrics):
     DO UPDATE SET
         -- Only update if we have newer data
         total_revenue = CASE 
-            WHEN EXCLUDED.calculation_date >= product_metrics.calculation_date 
-            THEN EXCLUDED.total_revenue 
+            WHEN excluded.calculation_date >= product_metrics.calculation_date 
+            THEN excluded.total_revenue 
             ELSE product_metrics.total_revenue 
         END,
         total_quantity_sold = CASE 
-            WHEN EXCLUDED.calculation_date >= product_metrics.calculation_date 
-            THEN EXCLUDED.total_quantity_sold 
+            WHEN excluded.calculation_date >= product_metrics.calculation_date 
+            THEN excluded.total_quantity_sold 
             ELSE product_metrics.total_quantity_sold 
         END,
         avg_price = CASE 
-            WHEN EXCLUDED.calculation_date >= product_metrics.calculation_date 
-            THEN EXCLUDED.avg_price 
+            WHEN excluded.calculation_date >= product_metrics.calculation_date 
+            THEN excluded.avg_price 
             ELSE product_metrics.avg_price 
         END,
         unique_customers = CASE 
-            WHEN EXCLUDED.calculation_date >= product_metrics.calculation_date 
-            THEN EXCLUDED.unique_customers 
+            WHEN excluded.calculation_date >= product_metrics.calculation_date 
+            THEN excluded.unique_customers 
             ELSE product_metrics.unique_customers 
         END,
-        first_sale_date = LEAST(product_metrics.first_sale_date, CAST(EXCLUDED.first_sale_date AS DATE)),
-        last_sale_date = GREATEST(product_metrics.last_sale_date, CAST(EXCLUDED.last_sale_date AS DATE)),
-        calculation_date = GREATEST(product_metrics.calculation_date, EXCLUDED.calculation_date);
+        first_sale_date = LEAST(product_metrics.first_sale_date, excluded.first_sale_date),
+        last_sale_date = GREATEST(product_metrics.last_sale_date, excluded.last_sale_date),
+        calculation_date = GREATEST(product_metrics.calculation_date, excluded.calculation_date);
     """
 
     # Execute conditional upsert
@@ -2131,12 +2226,12 @@ def _(conn, mo, product_metrics):
 
         **Product Analysis Summary:**
         """),
-        mo.ui.table(product_summary_result.value),
+        mo.ui.table(product_summary_result),
         mo.md("""
 
         **Top Products by Revenue:**
         """),
-        mo.ui.table(top_products_result.value),
+        mo.ui.table(top_products_result),
         mo.md("""
 
         **🚀 Advanced UPSERT Features:**
@@ -2208,8 +2303,8 @@ def _(conn, mo, sync_metadata):
     VALUES ('customer_summary', CURRENT_TIMESTAMP, (SELECT COUNT(*) FROM new_or_updated_data))
     ON CONFLICT (table_name)
     DO UPDATE SET
-        last_sync_timestamp = EXCLUDED.last_sync_timestamp,
-        records_processed = EXCLUDED.records_processed,
+        last_sync_timestamp = excluded.last_sync_timestamp,
+        records_processed = excluded.records_processed,
         last_sync_date = CURRENT_DATE;
     """
 
@@ -2221,6 +2316,8 @@ def _(conn, mo, sync_metadata):
     VALUES ('customer_summary', '2024-01-01 00:00:00', 0)
     ON CONFLICT (table_name) DO NOTHING;
     """)
+
+    sync_metadata_table_created = True
 
     sync_status_result = mo.sql(f"""
         SELECT 
@@ -2239,7 +2336,7 @@ def _(conn, mo, sync_metadata):
 
         **Sync Status:**
         """),
-        mo.ui.table(sync_status_result.value),
+        mo.ui.table(sync_status_result),
         mo.md("""
 
         **🔄 Incremental Sync Benefits:**
@@ -2372,7 +2469,7 @@ def _(mo):
         mo.md("""
         **📊 Complex Customer Segmentation Analysis Results:**
         """),
-        mo.ui.table(performance_result.value.iloc[:15]),
+        mo.ui.table(performance_result.head(15)),
         mo.md(f"""
 
         **Query Complexity Analysis:**
@@ -2380,7 +2477,7 @@ def _(mo):
         - **Aggregation Levels**: Customer → Segment → Regional Summary
         - **Window Functions**: RANK(), SUM() OVER()
         - **Advanced Metrics**: Standard deviation, lifetime calculations, percentages
-        - **Total Segments**: {len(performance_result.value)}
+        - **Total Segments**: {len(performance_result)}
 
         **🎯 Performance Considerations:**
         - **Multi-level Aggregation**: Can be memory intensive
@@ -2550,7 +2647,7 @@ def _(complex_query, mo):
 
         **✅ Validation Results from Our Complex Query:**
         """),
-        mo.ui.table(validation_result.value),
+        mo.ui.table(validation_result),
         mo.md("""
 
         **🎯 Validation Insights:**
@@ -2586,7 +2683,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, taxi_summary_result, transactions_df):
+def _(mo, taxi_summary_result, transactions):
     """
     ### What We've Covered
     """
@@ -2634,8 +2731,8 @@ def _(mo, taxi_summary_result, transactions_df):
     - Performance monitoring and validation
 
     **📊 Real Datasets Used:**
-    - **Transaction Data**: {len(transactions_df):,} records with customer, product, and regional information
-    - **NYC Taxi Data**: {taxi_summary_result.value.iloc[0]["total_trips"]:,} trips with temporal and geographic patterns
+    - **Transaction Data**: {len(transactions):,} records with customer, product, and regional information
+    - **NYC Taxi Data**: {taxi_summary_result.head(1).select("total_trips").item():,} trips with temporal and geographic patterns
     """
 
     mo.md(learning_summary)
