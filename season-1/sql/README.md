@@ -9,7 +9,6 @@ Welcome to the comprehensive SQL learning environment designed for data scientis
 - **Advanced PostgreSQL Commands**: QUALIFY, FILTER, WITHIN GROUP, array/JSON operations
 - **CTE vs Subquery Framework**: Performance trade-offs and decision guidelines
 - **PIVOT/UNPIVOT Operations**: Data transformation techniques without native operators
-- **Advanced SQL Patterns**: Gap/island analysis, deduplication, time series patterns
 - **Idempotent Operations**: UPSERT patterns, incremental updates, data synchronization
 - **Performance Optimization**: Query analysis, debugging, and optimization strategies
 
