@@ -1030,6 +1030,7 @@ def _():
                 formatted_lines.append(f"  • {detail}")
 
         return "\n".join(formatted_lines)
+
     return format_query_plan, format_query_plan_tree
 
 
