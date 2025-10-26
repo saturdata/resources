@@ -875,6 +875,140 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    """Query plan formatting functions"""
+
+    def format_query_plan_tree(explain_result):
+        """Format DuckDB EXPLAIN output preserving tree structure"""
+        if explain_result.height == 0:
+            return "No query plan available"
+
+        # Get the physical plan from the result
+        plan_text = explain_result.select("explain_value").item()
+
+        # Clean up the ASCII art while preserving structure
+        lines = plan_text.split("\n")
+        cleaned_lines = []
+
+        for line in lines:
+            # Replace Unicode box drawing characters with simpler ASCII
+            cleaned_line = (
+                line.replace("┌", "+")
+                .replace("┐", "+")
+                .replace("└", "+")
+                .replace("┘", "+")
+            )
+            cleaned_line = (
+                cleaned_line.replace("─", "-")
+                .replace("│", "|")
+                .replace("┬", "+")
+                .replace("┴", "+")
+            )
+            cleaned_line = cleaned_line.replace("├", "+").replace("┤", "+")
+
+            # Clean up extra spaces and make it more readable
+            cleaned_line = cleaned_line.strip()
+            if cleaned_line:
+                cleaned_lines.append(cleaned_line)
+
+        return "\n".join(cleaned_lines)
+
+    def format_query_plan(explain_result):
+        """Format DuckDB EXPLAIN output for better readability"""
+        if explain_result.height == 0:
+            return "No query plan available"
+
+        # Get the physical plan from the result
+        plan_text = explain_result.select("explain_value").item()
+
+        # Parse the ASCII art plan into a more readable format
+        lines = plan_text.split("\n")
+        formatted_lines = []
+
+        # Track the current operation being processed
+        current_operation = None
+        operation_details = []
+
+        for line in lines:
+            clean_line = line.strip()
+            if not clean_line:
+                continue
+
+            # Check if this is a new operation box
+            if "┌" in clean_line and "┐" in clean_line:
+                # Save previous operation if exists
+                if current_operation:
+                    formatted_lines.append(f"**{current_operation}**")
+                    for detail in operation_details:
+                        formatted_lines.append(f"  • {detail}")
+                    formatted_lines.append("")  # Add spacing
+                    operation_details = []
+
+                # Extract operation name
+                operation = (
+                    clean_line.replace("┌", "")
+                    .replace("┐", "")
+                    .replace("─", "")
+                    .strip()
+                )
+                current_operation = operation
+
+            # Check if this is content within an operation box
+            elif "│" in clean_line and not clean_line.startswith("│"):
+                content = clean_line.replace("│", "").strip()
+                if content and not content.startswith("─") and content != "":
+                    operation_details.append(content)
+            elif clean_line.startswith("│") and "│" in clean_line[1:]:
+                content = clean_line.replace("│", "").strip()
+                if content and not content.startswith("─") and content != "":
+                    operation_details.append(content)
+
+        # Don't forget the last operation
+        if current_operation:
+            formatted_lines.append(f"**{current_operation}**")
+            for detail in operation_details:
+                formatted_lines.append(f"  • {detail}")
+
+        return "\n".join(formatted_lines)
+
+    return format_query_plan, format_query_plan_tree
+
+
+@app.cell
+def _(mo, format_query_plan, format_query_plan_tree):
+    """Test the formatting functions with a simple EXPLAIN"""
+    # Test with a simple query to verify formatting works
+    test_explain = mo.sql("""
+        EXPLAIN
+        SELECT customer_id, COUNT(*) as count
+        FROM transactions 
+        WHERE date >= '2024-01-01'
+        GROUP BY customer_id
+        LIMIT 5
+    """)
+
+    mo.md(f"""
+    **🧪 Testing Query Plan Formatting:**
+    
+    **Raw Output:**
+    ```
+    {test_explain.select("explain_value").item()}
+    ```
+    
+    **Structured View:**
+    ```
+    {format_query_plan(test_explain)}
+    ```
+    
+    **Tree Structure View:**
+    ```
+    {format_query_plan_tree(test_explain)}
+    ```
+    """)
+    return
+
+
+@app.cell
+def _(mo, format_query_plan, format_query_plan_tree):
     """EXPLAIN for CTE query"""
     _explain_cte_result = mo.sql(
         f"""
@@ -907,6 +1041,21 @@ def _(mo):
         LIMIT 10
         """
     )
+
+    # Display the formatted query plan
+    mo.md(f"""
+    **🔍 Query Execution Plan:**
+    
+    **Structured View:**
+    ```
+    {format_query_plan(_explain_cte_result)}
+    ```
+    
+    **Tree Structure View:**
+    ```
+    {format_query_plan_tree(_explain_cte_result)}
+    ```
+    """)
     return
 
 
@@ -929,7 +1078,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, format_query_plan, format_query_plan_tree):
     """EXPLAIN for equivalent subquery"""
     _explain_subquery_result = mo.sql(
         f"""
@@ -954,6 +1103,21 @@ def _(mo):
         LIMIT 10
         """
     )
+
+    # Display the formatted query plan
+    mo.md(f"""
+    **🔍 Subquery Execution Plan:**
+    
+    **Structured View:**
+    ```
+    {format_query_plan(_explain_subquery_result)}
+    ```
+    
+    **Tree Structure View:**
+    ```
+    {format_query_plan_tree(_explain_subquery_result)}
+    ```
+    """)
     return
 
 
