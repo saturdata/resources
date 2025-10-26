@@ -695,8 +695,8 @@ def _(mo, transactions):
             -- Step 3: Analyze segments
             SELECT 
                 customer_segment,
-                COUNT(*) as customers_in_segment,
-                ROUND(AVG(total_spent), 2) as avg_spending_per_customer,
+                COUNT(*) as count_customers,
+                ROUND(AVG(total_spent), 2) as avg_spend_per_customer,
                 ROUND(AVG(transaction_count), 2) as avg_transactions_per_customer,
                 ROUND(AVG(customer_lifespan_days), 1) as avg_customer_lifespan_days,
                 SUM(total_spent) as total_segment_revenue
@@ -706,8 +706,8 @@ def _(mo, transactions):
         -- Step 4: Final output with business context
         SELECT 
             customer_segment,
-            customers_in_segment,
-            avg_spending_per_customer,
+            count_customers,
+            avg_spend_per_customer,
             avg_transactions_per_customer, 
             avg_customer_lifespan_days,
             total_segment_revenue,
