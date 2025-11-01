@@ -425,30 +425,28 @@ def _(mo):
 @app.cell
 def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
     def duckdb_implementation():
-        """DuckDB SQL-based implementation with Arrow optimization."""
+        """DuckDB SQL-based implementation with direct CSV querying."""
         con = duckdb.connect(':memory:')
-    
-        # Use Arrow for zero-copy data transfer (much faster than Pandas)
-        # This avoids the overhead of converting to Python objects
-        transactions_arrow = con.execute(f"""
+
+        # DuckDB can query CSV files directly without loading into memory first
+        # This is much more efficient than the Arrow conversion approach
+
+        # Create views that reference the CSV files directly
+        con.execute(f"""
+            CREATE VIEW transactions AS
             SELECT * FROM read_csv_auto('{TRANSACTIONS_FILE}')
-        """).arrow()
+        """)
 
-        # Register Arrow table with DuckDB (zero-copy view)
-        con.register('transactions', transactions_arrow)
-
-        # Process customers (small dataset)
-        customers_arrow = con.execute(f"""
+        con.execute(f"""
+            CREATE VIEW customers AS
             SELECT
                 customer_id,
                 segment,
                 SPLIT_PART(email, '@', 2) as email_domain
             FROM read_csv_auto('{CUSTOMERS_FILE}')
-        """).arrow()
+        """)
 
-        con.register('customers', customers_arrow)
-
-        # Aggregation using registered Arrow tables
+        # Aggregation query (not materialized, just for benchmarking consistency)
         agg_results = con.execute("""
             SELECT
                 region,
@@ -459,9 +457,9 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
                 COUNT(DISTINCT customer_id) as unique_customers
             FROM transactions
             GROUP BY region, product_category
-        """).arrow()
+        """).fetchall()
 
-        # Join using registered Arrow tables
+        # Join query - this is the main operation
         result = con.execute("""
             SELECT
                 t.*,
@@ -469,8 +467,9 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
                 c.email_domain
             FROM transactions t
             LEFT JOIN customers c ON t.customer_id = c.customer_id
-        """).arrow()
+        """).fetchall()
 
+        con.close()
         return len(result)
 
 
