@@ -4,15 +4,18 @@ version = "0.1.0"
 description = "Analytics and data science resources for Saturdata"
 requires-python = ">=3.11"
 dependencies = [
-    "marimo>=0.15.2",
+    "marimo[sql]>=0.15.2",
     "numpy>=1.24.0",
     "pandas>=2.0.0",
-    "polars>=0.20.0",
+    "polars[pyarrow]>=0.20.0",
     "scipy>=1.10.0",
     "matplotlib>=3.7.0",
     "seaborn>=0.12.0",
     "pyarrow>=21.0.0",
+    "plotly>=6.3.1",
+    "duckdb>=1.4.1",
+    "sqlglot>=27.26.0",
 ]
 
-[tool.uv]
-dev-dependencies = []
+[dependency-groups]
+dev = []
