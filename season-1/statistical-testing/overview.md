@@ -18,7 +18,7 @@ Here's the truth: A p-value tells you if something *could* be random chance, but
 
 **The Real Workplace Scenario**: Sam's nightmare with the JOIN issue that took 3 days to debug wasn't about the JOIN itself—it was about testing the wrong hypothesis. They assumed the database connection was the problem when really it was about sample size. They were testing their entire customer base as a "sample," which defeats the whole purpose of hypothesis testing.
 
-**The Breakthrough**: Don't experiment on a whole population. If you're testing everyone, just do a simple count at that point. The magic of statistical testing is that it lets you make confident decisions about millions based on hundreds—if you do it right.
+**The breakthrough:**: Don't experiment on a whole population. If you're testing everyone, just do a simple count at that point. The magic of statistical testing is that it lets you make confident decisions about millions based on hundreds—if you do it right.
 
 ### The Core Concepts That Matter
 
@@ -37,7 +37,7 @@ The real trick is understanding that you can't avoid both—you have to choose w
 
 **Chi-square Test**: The workhorse for categorical data. This is your tool if you need to know whether product preference was related to region. The misconception: People think it's just for "yes/no" questions, but it handles any categorical breakdown beautifully.
 
-**ANOVA**: When you graduate beyond two groups. The breakthrough: Understanding it's not "better" than t-tests for two groups—it's just designed for when you have three or more. And those F-statistics are basically "are these groups more different than random chance would predict?"
+**ANOVA**: When you graduate beyond two groups. The breakthrough:: Understanding it's not "better" than t-tests for two groups—it's just designed for when you have three or more. And those F-statistics are basically "are these groups more different than random chance would predict?"
 
 ## Normality: The Assumption We All Ignore
 
