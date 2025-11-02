@@ -12,7 +12,7 @@ Here's the truth: A p-value tells you if something *could* be random chance, but
 
 **The 'Aha' Moment**: When you finally understand that p-values and effect sizes are two sides of the same coin. A p-value answers "Is this real?" An effect size answers "Does it matter?" You need both.
 
-**Effect Sizes (Cohen's d)**: Effect size measures the magnitude of a difference or relationship, standardizing it so you can compare effects across different studies or contexts. While p-values tell you *if* there's a difference, effect sizes tell you *how big* that difference actually is in practical terms. The unsung hero of statistical testing. A Cohen's d of 0.2 is barely noticeable. 0.8 is a game-changer. Learning to interpret effect sizes is the difference between a data scientist and someone who just runs tests.
+**Effect Sizes (Cohen's d)**: Effect size measures the magnitude of a difference or relationship, standardizing it so you can compare effects across different studies or contexts. While p-values tell you *if* there's a difference, effect sizes tell you *how big* that difference actually is in practical terms. The unsung hero of statistical testing. A Cohen's d of 0.2 is barely noticeable. 0.8 is a game-changer. Learning to interpret effect sizes is the difference between a data professional and someone who just runs tests.
 
 ## Hypothesis Testing: Not Just for Scientists
 
@@ -51,7 +51,7 @@ The real trick is understanding that you can't avoid both—you have to choose w
 
 **The Sample Size Trap**: The number one mistake: Running tests too small to detect meaningful differences, then concluding "nothing changed" when really you just didn't have enough power. Power analysis isn't optional—it's how you avoid wasting months on tests that can't possibly work.
 
-**Interpreting Results for Business Decisions**: Here's where many data scientists fail: they report "p < 0.05" and walk away. The business needs: "The treatment increased revenue by 3.2% with 95% confidence that this isn't random chance. Effect size is moderate, and implementation cost is X." That's actionable. P-values alone are not.
+**Interpreting Results for Business Decisions**: Here's where many data professionals fail: they report "p < 0.05" and walk away. The business needs: "The treatment increased revenue by 3.2% with 95% confidence that this isn't random chance. Effect size is moderate, and implementation cost is X." That's actionable. P-values alone are not.
 
 **Common Pitfalls in Experimental Design**:
 
@@ -68,7 +68,7 @@ The real trick is understanding that you can't avoid both—you have to choose w
 
 ## Correlation and Regression: The Relationship Dance
 
-**Pearson Correlation vs. Causation**: The day you finally internalize this is the day you become a real data scientist. Every correlation isn't causation, but more importantly: sometimes correlation is still useful even if you can't prove causation. The key is knowing which is which.
+**Pearson Correlation vs. Causation**: The day you finally internalize this is the day you become a real data professional. Every correlation isn't causation, but more importantly: sometimes correlation is still useful even if you can't prove causation. The key is knowing which is which.
 
 **Linear Regression Interpretation**:
 

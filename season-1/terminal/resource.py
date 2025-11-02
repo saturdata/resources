@@ -119,7 +119,7 @@ def _(mo):
         r"""
     ### File Operations
 
-    Create, copy, move, and delete files like a pro:
+    Create, copy, move, delete, and view files like a pro:
 
     ```bash
     # Create a new directory
@@ -133,6 +133,9 @@ def _(mo):
 
     # Move or rename a file
     mv analysis.py data_analysis.py
+
+    # View file contents (display entire file)
+    cat data_analysis.py
 
     # Delete a file (be careful!)
     rm backup_analysis.py
