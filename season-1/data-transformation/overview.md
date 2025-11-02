@@ -10,7 +10,7 @@ Remember when your pandas script that took 45 minutes to run got rewritten in Po
 
 **The Reality**: NumPy arrays are the foundation of every data operation in Python. When pandas calculates a mean? NumPy. When Polars does vectorization? NumPy concepts. When scikit-learn trains a model? NumPy arrays.
 
-**The 'Aha' Moment**: Array operations aren't just faster—they're the only way to think about data at scale. That time you wrote a loop to calculate correlations and it took forever? The breakthrough was realizing `np.corrcoef()` does it in one line because it's vectorized. Understanding arrays means understanding why some code is fast and some is impossibly slow.
+**The 'Aha' Moment**: Array operations aren't just faster—they're the only way to think about data at scale. That time you wrote a loop to calculate correlations and it took forever? The breakthrough: was realizing `np.corrcoef()` does it in one line because it's vectorized. Understanding arrays means understanding why some code is fast and some is impossibly slow.
 
 **Vectorization is Everything**: Once you understand that NumPy operations happen on entire arrays at once (not row-by-row), everything clicks. The dot product? It's not just math—it's how you calculate similarities, distances, and relationships efficiently. That correlation coefficient? It's a dot product in disguise.
 
@@ -47,7 +47,7 @@ Remember when your pandas script that took 45 minutes to run got rewritten in Po
 
 ## Production Considerations: What Actually Matters
 
-**The Critical vs. Nice-to-Have Moment**: Learning every single data operation is impossible. The breakthrough is understanding which operations are your bread and butter (filter, group by, aggregate) versus the ones you can look up when needed (pivot, unstack, complex resampling).
+**The Critical vs. Nice-to-Have Moment**: Learning every single data operation is impossible. The breakthrough: is understanding which operations are your bread and butter (filter, group by, aggregate) versus the ones you can look up when needed (pivot, unstack, complex resampling).
 
 **Memory Optimization**: That time your script ran out of memory halfway through, you learned the hard way that not all operations are created equal. Some transformations create copies (expensive). Some modify in place (cheap). That's the difference between a script that works and one that crashes.
 
@@ -70,4 +70,4 @@ Remember when your pandas script that took 45 minutes to run got rewritten in Po
 ****
 Data transformation isn't about knowing every function in every library. It's about understanding the patterns: vectorization, grouping, aggregation, filtering. Once you see those patterns, the syntax becomes secondary. And choosing the right tool (Polars for speed, pandas for compatibility, NumPy for understanding) isn't about loyalty—it's about results.
 
-The real skill? Processing data fast enough that you can iterate, experiment, and actually discover insights instead of waiting for code to finish running.
+The real skill: Processing data fast enough that you can iterate, experiment, and actually discover insights instead of waiting for code to finish running.
