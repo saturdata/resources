@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Terminal and Git Basics for Data Scientists - Marimo Notebook
+Terminal and Git Basics for Data Professionals - Marimo Notebook
 =============================================================
 Covers terminal navigation, file operations, git workflow, and Python environment management
 """
@@ -14,6 +14,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -21,7 +22,7 @@ def _():
 def _(mo):
     mo.md(
         r"""
-    # Terminal and Git Basics for Data Scientists
+    # Terminal and Git Basics for Data Professionals
     Saturdata: Season 1
 
     This notebook provides hands-on examples for mastering terminal and git fundamentals:
@@ -47,7 +48,7 @@ def _(mo):
         r"""
     ### The Power of Command Line
 
-    As a data scientist, mastering the terminal unlocks:
+    As a data professional, mastering the terminal unlocks:
     - **Engineering workflows**: Test code like a professional developer
     - **Speed**: Navigate faster than clicking through folders
     - **Automation**: Chain commands together for repetitive tasks
@@ -118,7 +119,7 @@ def _(mo):
         r"""
     ### File Operations
 
-    Create, copy, move, and delete files like a pro:
+    Create, copy, move, delete, and view files like a pro:
 
     ```bash
     # Create a new directory
@@ -132,6 +133,9 @@ def _(mo):
 
     # Move or rename a file
     mv analysis.py data_analysis.py
+
+    # View file contents (display entire file)
+    cat data_analysis.py
 
     # Delete a file (be careful!)
     rm backup_analysis.py
@@ -402,6 +406,7 @@ def _(mo):
 def _():
     import os
     import subprocess
+
     return (os,)
 
 
