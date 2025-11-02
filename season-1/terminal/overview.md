@@ -49,7 +49,7 @@ Remember when you spent 20 minutes clicking through folders to find that data fi
 - `:wq` to write and quit (save and exit)
 - `:q!` to quit without saving (abandon changes)
 
-That's 90% of what you need. The rest you can look up when needed. The breakthrough:: Understanding that vim has two modes (insert and normal), and most commands only work in normal mode. Once you get that, vim stops being mysterious.
+That's 90% of what you need. The rest you can look up when needed. The breakthrough: Understanding that vim has two modes (insert and normal), and most commands only work in normal mode. Once you get that, vim stops being mysterious.
 
 **The nano Alternative**: If vim feels too hard, `nano filename.txt` is friendlier. Ctrl+X to exit, Y to save. Simple. The key is having *some* terminal editor skills. Whether it's vim or nano doesn't matter—being able to edit files in terminal does.
 
@@ -59,7 +59,7 @@ That's 90% of what you need. The rest you can look up when needed. The breakthro
 
 **`Ctrl+C` to Cancel**: That command that's taking forever can be stopped by `Ctrl+C`. This seems obvious until you're watching a script hang and realize you don't know how to stop it.
 
-**`&&` for Sequential Commands**: `mkdir project && cd project && touch README.md`—three commands, one line. The breakthrough:: Understanding that `&&` means "run the next command only if this one succeeds." It's not just concatenation—it's conditional execution. Combine commands thoughtfully, and terminal becomes a scripting language.
+**`&&` for Sequential Commands**: `mkdir project && cd project && touch README.md`—three commands, one line. The breakthrough: Understanding that `&&` means "run the next command only if this one succeeds." It's not just concatenation—it's conditional execution. Combine commands thoughtfully, and terminal becomes a scripting language.
 
 ## Git: The Problem It Solves
 

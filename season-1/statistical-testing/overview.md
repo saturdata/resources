@@ -37,7 +37,7 @@ The real trick is understanding that you can't avoid both—you have to choose w
 
 **Chi-square Test**: The workhorse for categorical data. This is your tool if you need to know whether product preference was related to region. The misconception: People think it's just for "yes/no" questions, but it handles any categorical breakdown beautifully.
 
-**ANOVA**: When you graduate beyond two groups. The breakthrough:: Understanding it's not "better" than t-tests for two groups—it's just designed for when you have three or more. And those F-statistics are basically "are these groups more different than random chance would predict?"
+**ANOVA**: When you graduate beyond two groups. The breakthrough: Understanding it's not "better" than t-tests for two groups—it's just designed for when you have three or more. And those F-statistics are basically "are these groups more different than random chance would predict?"
 
 ## Normality: The Assumption We All Ignore
 
