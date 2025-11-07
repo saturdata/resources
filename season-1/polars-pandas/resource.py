@@ -28,7 +28,7 @@ def _(mo):
     mo.md("""
     # 🔧 Data Mechanic's Garage: Episode 1
 
-    ## Performance Tuning for Python Data Processing F
+    ## Performance Tuning for Python Data Processing
 
     Welcome to the Data Mechanic's Garage! Today we're taking a "classic" Pandas script and giving it a full performance upgrade. We'll explore four approaches to data processing and see just how fast modern tools can be.
 
@@ -780,15 +780,7 @@ def _(mo):
     - Polars GitHub: https://github.com/pola-rs/polars
     - DuckDB GitHub: https://github.com/duckdb/duckdb
     - Benchmarks: https://duckdblabs.github.io/db-benchmark/
-
-    ## Next Episode Preview
-    Coming soon: **Data Visualization Showdown** - Matplotlib vs Plotly vs Altair
     """)
-    return
-
-
-@app.cell
-def _():
     return
 
 
