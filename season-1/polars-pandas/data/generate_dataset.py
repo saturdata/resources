@@ -12,6 +12,7 @@ Creates a realistic dataset with:
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from pathlib import Path
 
 
 def generate_transactions(n_rows: int = 5_000_000, seed: int = 42) -> pd.DataFrame:
@@ -99,23 +100,35 @@ def generate_products(n_products: int = 10_000, seed: int = 42) -> pd.DataFrame:
 if __name__ == '__main__':
     print("Generating synthetic datasets...")
 
+    # Determine output directory (data folder relative to script location)
+    script_dir = Path(__file__).parent
+    # If script is in data/, save to current directory; otherwise save to data/
+    if script_dir.name == 'data':
+        output_dir = script_dir
+    else:
+        output_dir = script_dir / 'data'
+        output_dir.mkdir(exist_ok=True)
+
     # Generate transaction data (5M rows ~500MB)
     print("1. Generating transactions (5M rows)...")
     transactions = generate_transactions(5_000_000)
-    transactions.to_csv('transactions.csv', index=False)
-    print(f"   Saved: transactions.csv ({len(transactions):,} rows)")
+    transactions_path = output_dir / 'transactions.csv'
+    transactions.to_csv(transactions_path, index=False)
+    print(f"   Saved: {transactions_path} ({len(transactions):,} rows)")
 
     # Generate customer dimension
     print("2. Generating customers (100K rows)...")
     customers = generate_customers(100_000)
-    customers.to_csv('customers.csv', index=False)
-    print(f"   Saved: customers.csv ({len(customers):,} rows)")
+    customers_path = output_dir / 'customers.csv'
+    customers.to_csv(customers_path, index=False)
+    print(f"   Saved: {customers_path} ({len(customers):,} rows)")
 
     # Generate product dimension
     print("3. Generating products (10K rows)...")
     products = generate_products(10_000)
-    products.to_csv('products.csv', index=False)
-    print(f"   Saved: products.csv ({len(products):,} rows)")
+    products_path = output_dir / 'products.csv'
+    products.to_csv(products_path, index=False)
+    print(f"   Saved: {products_path} ({len(products):,} rows)")
 
     # Display sample and stats
     print("\nDataset Summary:")
