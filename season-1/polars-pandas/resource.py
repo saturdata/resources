@@ -20,6 +20,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -65,7 +66,8 @@ def _():
 
     # Suppress warnings for cleaner output
     import warnings
-    warnings.filterwarnings('ignore')
+
+    warnings.filterwarnings("ignore")
     return Path, alt, duckdb, pd, pl, psutil, time, tracemalloc
 
 
@@ -85,21 +87,18 @@ def _(mo):
 @app.cell
 def _(Path):
     # Data paths - use absolute path relative to this notebook file
-    NOTEBOOK_DIR = Path(__file__).parent if '__file__' in dir() else Path.cwd()
-    DATA_DIR = NOTEBOOK_DIR / 'data'
-    TRANSACTIONS_FILE = DATA_DIR / 'transactions.csv'
-    CUSTOMERS_FILE = DATA_DIR / 'customers.csv'
-    PRODUCTS_FILE = DATA_DIR / 'products.csv'
+    NOTEBOOK_DIR = Path(__file__).parent if "__file__" in dir() else Path.cwd()
+    DATA_DIR = NOTEBOOK_DIR / "data"
+    TRANSACTIONS_FILE = DATA_DIR / "transactions.csv"
+    CUSTOMERS_FILE = DATA_DIR / "customers.csv"
+    PRODUCTS_FILE = DATA_DIR / "products.csv"
     return CUSTOMERS_FILE, DATA_DIR, TRANSACTIONS_FILE
 
 
 @app.cell
 def _(CUSTOMERS_FILE, DATA_DIR, TRANSACTIONS_FILE, mo):
     # Verify data files exist
-    _files_exist = all([
-        TRANSACTIONS_FILE.exists(),
-        CUSTOMERS_FILE.exists()
-    ])
+    _files_exist = all([TRANSACTIONS_FILE.exists(), CUSTOMERS_FILE.exists()])
 
     if not _files_exist:
         mo.md(f"""
@@ -160,12 +159,13 @@ def _(psutil, time, tracemalloc):
         tracemalloc.stop()
 
         return {
-            'library': label,
-            'time_seconds': round(elapsed, 2),
-            'memory_mb': round(mem_after - mem_before, 1),
-            'peak_memory_mb': round(peak / 1024 / 1024, 1),
-            'result': result
+            "library": label,
+            "time_seconds": round(elapsed, 2),
+            "memory_mb": round(mem_after - mem_before, 1),
+            "peak_memory_mb": round(peak / 1024 / 1024, 1),
+            "result": result,
         }
+
     return (benchmark_operation,)
 
 
@@ -196,28 +196,28 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
         customers = pd.read_csv(CUSTOMERS_FILE)
 
         # 2. String manipulation - extract email domain
-        customers['email_domain'] = customers['email'].apply(
-            lambda x: x.split('@')[1] if '@' in x else 'unknown'
+        customers["email_domain"] = customers["email"].apply(
+            lambda x: x.split("@")[1] if "@" in x else "unknown"
         )
 
         # 3. Aggregation - group by region and category
-        agg_results = transactions.groupby(['region', 'product_category']).agg({
-            'revenue': ['sum', 'mean', 'count'],
-            'customer_id': 'nunique'
-        }).reset_index()
+        agg_results = (
+            transactions.groupby(["region", "product_category"])
+            .agg({"revenue": ["sum", "mean", "count"], "customer_id": "nunique"})
+            .reset_index()
+        )
 
         # 4. Join with customer data
         result = transactions.merge(
-            customers[['customer_id', 'segment', 'email_domain']],
-            on='customer_id',
-            how='left'
+            customers[["customer_id", "segment", "email_domain"]],
+            on="customer_id",
+            how="left",
         )
 
         return len(result)
 
-
     # Run benchmark
-    pandas_result = benchmark_operation(pandas_baseline, 'Classic Pandas')
+    pandas_result = benchmark_operation(pandas_baseline, "Classic Pandas")
     return (pandas_result,)
 
 
@@ -226,9 +226,9 @@ def _(mo, pandas_result):
     mo.md(f"""
     ### 📈 Classic Pandas Results
 
-    - **Time**: {pandas_result['time_seconds']} seconds
-    - **Memory**: {pandas_result['memory_mb']} MB
-    - **Peak Memory**: {pandas_result['peak_memory_mb']} MB
+    - **Time**: {pandas_result["time_seconds"]} seconds
+    - **Memory**: {pandas_result["memory_mb"]} MB
+    - **Peak Memory**: {pandas_result["peak_memory_mb"]} MB
 
     This is our baseline. Now let's see how we can improve it!
     """)
@@ -259,51 +259,49 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
         """Pandas with PyArrow backend for improved performance."""
         # 1. Load data with PyArrow engine
         transactions = pd.read_csv(
-            TRANSACTIONS_FILE,
-            engine='pyarrow',
-            dtype_backend='pyarrow'
+            TRANSACTIONS_FILE, engine="pyarrow", dtype_backend="pyarrow"
         )
         customers = pd.read_csv(
-            CUSTOMERS_FILE,
-            engine='pyarrow',
-            dtype_backend='pyarrow'
+            CUSTOMERS_FILE, engine="pyarrow", dtype_backend="pyarrow"
         )
 
         # 2. String manipulation
-        customers['email_domain'] = customers['email'].apply(
-            lambda x: x.split('@')[1] if '@' in x else 'unknown'
+        customers["email_domain"] = customers["email"].apply(
+            lambda x: x.split("@")[1] if "@" in x else "unknown"
         )
 
         # 3. Aggregation
-        agg_results = transactions.groupby(['region', 'product_category']).agg({
-            'revenue': ['sum', 'mean', 'count'],
-            'customer_id': 'nunique'
-        }).reset_index()
+        agg_results = (
+            transactions.groupby(["region", "product_category"])
+            .agg({"revenue": ["sum", "mean", "count"], "customer_id": "nunique"})
+            .reset_index()
+        )
 
         # 4. Join
         result = transactions.merge(
-            customers[['customer_id', 'segment', 'email_domain']],
-            on='customer_id',
-            how='left'
+            customers[["customer_id", "segment", "email_domain"]],
+            on="customer_id",
+            how="left",
         )
 
         return len(result)
 
-
     # Run benchmark
-    pandas_pyarrow_result = benchmark_operation(pandas_pyarrow, 'Pandas + PyArrow')
+    pandas_pyarrow_result = benchmark_operation(pandas_pyarrow, "Pandas + PyArrow")
     return (pandas_pyarrow_result,)
 
 
 @app.cell
 def _(mo, pandas_pyarrow_result, pandas_result):
-    _speedup = round(pandas_result['time_seconds'] / pandas_pyarrow_result['time_seconds'], 1)
+    _speedup = round(
+        pandas_result["time_seconds"] / pandas_pyarrow_result["time_seconds"], 1
+    )
     mo.md(
         f"""
         ### 📈 Pandas + PyArrow Results
 
-        - **Time**: {pandas_pyarrow_result['time_seconds']} seconds
-        - **Memory**: {pandas_pyarrow_result['memory_mb']} MB
+        - **Time**: {pandas_pyarrow_result["time_seconds"]} seconds
+        - **Memory**: {pandas_pyarrow_result["memory_mb"]} MB
         - **Speedup**: {_speedup}x faster than baseline
 
         🎯 **Key Takeaway**: A simple backend change gave us {_speedup}x speedup with zero refactoring!
@@ -340,49 +338,44 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pl):
 
         # 2. String manipulation using expressions
         customers = customers.with_columns(
-            pl.col('email').str.split('@').list.get(1).alias('email_domain')
+            pl.col("email").str.split("@").list.get(1).alias("email_domain")
         )
 
         # 3. Aggregation using expression API
-        agg_results = (
-            transactions
-            .group_by(['region', 'product_category'])
-            .agg([
-                pl.sum('revenue').alias('total_revenue'),
-                pl.mean('revenue').alias('avg_revenue'),
-                pl.count('revenue').alias('transaction_count'),
-                pl.n_unique('customer_id').alias('unique_customers')
-            ])
+        agg_results = transactions.group_by(["region", "product_category"]).agg(
+            [
+                pl.sum("revenue").alias("total_revenue"),
+                pl.mean("revenue").alias("avg_revenue"),
+                pl.count("revenue").alias("transaction_count"),
+                pl.n_unique("customer_id").alias("unique_customers"),
+            ]
         )
 
         # 4. Join with customer data
         result = (
-            transactions
-            .join(
-                customers.select(['customer_id', 'segment', 'email_domain']),
-                on='customer_id',
-                how='left'
-            )
-            .collect()  # Execute the lazy query plan
+            transactions.join(
+                customers.select(["customer_id", "segment", "email_domain"]),
+                on="customer_id",
+                how="left",
+            ).collect()  # Execute the lazy query plan
         )
 
         return len(result)
 
-
     # Run benchmark
-    polars_result = benchmark_operation(polars_implementation, 'Polars')
+    polars_result = benchmark_operation(polars_implementation, "Polars")
     return (polars_result,)
 
 
 @app.cell
 def _(mo, pandas_result, polars_result):
-    _speedup = round(pandas_result['time_seconds'] / polars_result['time_seconds'], 1)
+    _speedup = round(pandas_result["time_seconds"] / polars_result["time_seconds"], 1)
     mo.md(
         f"""
         ### 📈 Polars Results
 
-        - **Time**: {polars_result['time_seconds']} seconds
-        - **Memory**: {polars_result['memory_mb']} MB
+        - **Time**: {polars_result["time_seconds"]} seconds
+        - **Memory**: {polars_result["memory_mb"]} MB
         - **Speedup**: {_speedup}x faster than baseline
 
         🔥 **Key Takeaway**: Polars delivers {_speedup}x speedup with parallel processing and query optimization!
@@ -423,22 +416,64 @@ def _(mo):
 
 
 @app.cell
-def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
+def _(duckdb, mo):
+    """
+    ## DuckDB Connection Setup
+
+    Creating an in-memory DuckDB connection for SQL execution using mo.sql() syntax.
+    marimo will automatically discover this connection and use it with mo.sql().
+    """
+    # Create in-memory DuckDB connection
+    conn = duckdb.connect(":memory:")
+
+    # Optimize DuckDB settings for this workload
+    # DuckDB auto-detects CPU cores for parallelization (default behavior)
+    conn.execute("SET memory_limit='2GB'")
+    # Enable all optimizers for best performance
+    conn.execute("SET disabled_optimizers=''")
+
+    mo.md("""
+    ✅ **DuckDB Connection Established**
+    
+    Connection configured with:
+    - Memory limit: 2GB
+    - Threads: Auto-detect (all cores, default)
+    - Optimizers: All enabled
+    
+    💡 **Using `mo.sql()`:**
+    - marimo automatically discovers the `conn` variable
+    - Use `mo.sql(f"...")` to execute queries with f-string interpolation
+    - Returns a DataFrame directly (Polars DataFrame by default)
+    """)
+    return (conn,)
+
+
+@app.cell
+def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, conn, mo):
     def duckdb_implementation():
-        """DuckDB SQL-based implementation with direct CSV querying."""
-        con = duckdb.connect(':memory:')
+        """
+        DuckDB SQL-based implementation optimized for performance using mo.sql() syntax.
 
-        # DuckDB can query CSV files directly without loading into memory first
-        # This is much more efficient than the Arrow conversion approach
+        This implementation materializes data into tables to match the benchmark
+        pattern (load once, query multiple times). For production use, DuckDB
+        excels when querying CSV/Parquet files directly with predicate pushdown.
 
-        # Create views that reference the CSV files directly
-        con.execute(f"""
-            CREATE VIEW transactions AS
+        Uses mo.sql() syntax similar to the SQL notebook pattern, where marimo
+        automatically discovers the DuckDB connection.
+        """
+        # Load data into tables (materialize once for fair comparison with Pandas/Polars)
+        # This avoids re-reading CSV files on each query
+        # Use TEMPORARY tables for better memory management
+        mo.sql(f"""
+            CREATE OR REPLACE TEMPORARY TABLE transactions AS
             SELECT * FROM read_csv_auto('{TRANSACTIONS_FILE}')
         """)
 
-        con.execute(f"""
-            CREATE VIEW customers AS
+        # Load and transform customers in one step
+        # Create as temporary table with only needed columns for join
+        # This smaller table will be used as the build side in the hash join
+        mo.sql(f"""
+            CREATE OR REPLACE TEMPORARY TABLE customers AS
             SELECT
                 customer_id,
                 segment,
@@ -446,8 +481,10 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
             FROM read_csv_auto('{CUSTOMERS_FILE}')
         """)
 
-        # Aggregation query (not materialized, just for benchmarking consistency)
-        agg_results = con.execute("""
+        # Aggregation query (for benchmarking consistency)
+        # mo.sql() returns a DataFrame directly
+        # This query is executed separately to match the benchmark pattern
+        agg_results = mo.sql("""
             SELECT
                 region,
                 product_category,
@@ -457,36 +494,40 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, duckdb):
                 COUNT(DISTINCT customer_id) as unique_customers
             FROM transactions
             GROUP BY region, product_category
-        """).fetchall()
+        """)
 
-        # Join query - this is the main operation
-        result = con.execute("""
+        # Optimized join query - this is the main operation
+        # Strategy: Use LEFT JOIN to match benchmark (Pandas uses how='left')
+        # DuckDB's cost-based optimizer will automatically:
+        # - Use customers (smaller table, 100K rows) as the build side
+        # - Use transactions (larger table, 5M rows) as the probe side
+        # - Build a hash table on customers.customer_id for fast lookups
+        # This is the optimal join strategy for this data size ratio
+        result = mo.sql("""
             SELECT
                 t.*,
                 c.segment,
                 c.email_domain
             FROM transactions t
             LEFT JOIN customers c ON t.customer_id = c.customer_id
-        """).fetchall()
+        """)
 
-        con.close()
         return len(result)
 
-
     # Run benchmark
-    duckdb_result = benchmark_operation(duckdb_implementation, 'DuckDB')
+    duckdb_result = benchmark_operation(duckdb_implementation, "DuckDB")
     return (duckdb_result,)
 
 
 @app.cell
 def _(duckdb_result, mo, pandas_result):
-    _speedup = round(pandas_result['time_seconds'] / duckdb_result['time_seconds'], 1)
+    _speedup = round(pandas_result["time_seconds"] / duckdb_result["time_seconds"], 1)
     mo.md(
         f"""
         ### 📈 DuckDB Results
 
-        - **Time**: {duckdb_result['time_seconds']} seconds
-        - **Memory**: {duckdb_result['memory_mb']} MB
+        - **Time**: {duckdb_result["time_seconds"]} seconds
+        - **Memory**: {duckdb_result["memory_mb"]} MB
         - **Speedup**: {_speedup}x faster than baseline
 
         🎯 **Key Takeaway**: DuckDB delivers Polars-level performance with familiar SQL syntax!
@@ -512,29 +553,19 @@ def _(mo):
 @app.cell
 def _(duckdb_result, pandas_pyarrow_result, pandas_result, pd, polars_result):
     # Compile results
-    _results_data = [
-        pandas_result,
-        pandas_pyarrow_result,
-        polars_result,
-        duckdb_result
-    ]
+    _results_data = [pandas_result, pandas_pyarrow_result, polars_result, duckdb_result]
 
     results_df = pd.DataFrame(_results_data)
-    results_df['speedup'] = round(
-        pandas_result['time_seconds'] / results_df['time_seconds'],
-        1
+    results_df["speedup"] = round(
+        pandas_result["time_seconds"] / results_df["time_seconds"], 1
     )
-    results_df = results_df.drop('result', axis=1)
+    results_df = results_df.drop("result", axis=1)
     return (results_df,)
 
 
 @app.cell
 def _(mo, results_df):
-    mo.ui.table(
-        results_df,
-        selection=None,
-        label="Performance Comparison Results"
-    )
+    mo.ui.table(results_df, selection=None, label="Performance Comparison Results")
     return
 
 
@@ -555,31 +586,25 @@ def _(alt, results_df):
         alt.Chart(results_df)
         .mark_bar()
         .encode(
-            x=alt.X('library:N', sort='-y', title='Library'),
-            y=alt.Y('time_seconds:Q', title='Time (seconds)'),
+            x=alt.X("library:N", sort="-y", title="Library"),
+            y=alt.Y("time_seconds:Q", title="Time (seconds)"),
             color=alt.Color(
-                'library:N',
-                scale=alt.Scale(scheme='category20'),
-                legend=None
+                "library:N", scale=alt.Scale(scheme="category20"), legend=None
             ),
-            tooltip=['library', 'time_seconds', 'speedup']
+            tooltip=["library", "time_seconds", "speedup"],
         )
-        .properties(
-            title='Execution Time Comparison',
-            width=400,
-            height=300
-        )
+        .properties(title="Execution Time Comparison", width=400, height=300)
     )
 
     # Add speedup annotations
     speedup_text = (
         alt.Chart(results_df)
-        .mark_text(dy=-10, fontSize=12, fontWeight='bold')
+        .mark_text(dy=-10, fontSize=12, fontWeight="bold")
         .encode(
-            x=alt.X('library:N', sort='-y'),
-            y='time_seconds:Q',
-            text=alt.Text('speedup:Q', format='.1f'),
-            color=alt.value('black')
+            x=alt.X("library:N", sort="-y"),
+            y="time_seconds:Q",
+            text=alt.Text("speedup:Q", format=".1f"),
+            color=alt.value("black"),
         )
     )
 
@@ -600,20 +625,14 @@ def _(alt, results_df):
         alt.Chart(results_df)
         .mark_bar()
         .encode(
-            x=alt.X('library:N', title='Library'),
-            y=alt.Y('peak_memory_mb:Q', title='Peak Memory (MB)'),
+            x=alt.X("library:N", title="Library"),
+            y=alt.Y("peak_memory_mb:Q", title="Peak Memory (MB)"),
             color=alt.Color(
-                'library:N',
-                scale=alt.Scale(scheme='category20'),
-                legend=None
+                "library:N", scale=alt.Scale(scheme="category20"), legend=None
             ),
-            tooltip=['library', 'peak_memory_mb']
+            tooltip=["library", "peak_memory_mb"],
         )
-        .properties(
-            title='Peak Memory Usage Comparison',
-            width=400,
-            height=300
-        )
+        .properties(title="Peak Memory Usage Comparison", width=400, height=300)
     )
     return (memory_chart,)
 
