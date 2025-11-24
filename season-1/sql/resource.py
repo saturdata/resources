@@ -42,11 +42,18 @@ def _():
     import duckdb
     import pyarrow.parquet as pq
     import warnings
+    from pathlib import Path
 
     warnings.filterwarnings("ignore")
 
+    # Get the absolute path to the data directory
+    # This works by finding the notebook's location and constructing paths relative to it
+    # Notebook is in season-1/sql/, data is in season-1/data/
+    NOTEBOOK_DIR = Path(__file__).parent if hasattr(Path(__file__), 'parent') else Path.cwd()
+    DATA_DIR = NOTEBOOK_DIR.parent / "data"
+
     mo.md("✅ **Environment Setup Complete**")
-    return duckdb, mo, pl, pq
+    return DATA_DIR, duckdb, mo, pl, pq
 
 
 @app.cell
@@ -83,14 +90,15 @@ def _(duckdb, mo):
 
 
 @app.cell
-def _(mo, pl):
+def _(DATA_DIR, mo, pl):
     """
     ## Data Loading - Transaction Data
 
     Loading the synthetic transaction data with customer purchases, regions, and promo codes.
     """
-    # Load transaction data from CSV
-    transactions = pl.read_csv("season-1/data/transactions_synthetic.csv")
+    # Load transaction data from CSV using absolute path
+    transactions_csv_path = DATA_DIR / "transactions_synthetic.csv"
+    transactions = pl.read_csv(str(transactions_csv_path))
 
     # Convert date column to proper date type
     transactions = transactions.with_columns(pl.col("date").str.to_date().alias("date"))
@@ -104,6 +112,8 @@ def _(mo, pl):
     - **Customers:** {transactions["customer_id"].n_unique():,} unique
     - **Products:** {transactions["product_id"].n_unique():,} unique
     - **Regions:** {", ".join(sorted(transactions["region"].unique().to_list()))}
+
+    **Data Path:** `{transactions_csv_path}`
     """)
     return (transactions,)
 
@@ -141,20 +151,28 @@ def _(mo, transactions):
 
 
 @app.cell
-def _(mo, pq):
+def _(DATA_DIR, mo, pq):
     """
     ## Data Loading - NYC Taxi Data
 
     Loading NYC Yellow Taxi trip data for January and February 2024.
     """
-    # Load taxi data from parquet files
-    taxi_jan = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-01.parquet")
-    taxi_feb = pq.read_table("season-1/data/tlc/yellow_tripdata_2024-02.parquet")
+    # Load taxi data from parquet files using absolute paths
+    taxi_data_dir = DATA_DIR / "tlc"
+    taxi_jan_path = taxi_data_dir / "yellow_tripdata_2024-01.parquet"
+    taxi_feb_path = taxi_data_dir / "yellow_tripdata_2024-02.parquet"
 
-    mo.md("""
+    taxi_jan = pq.read_table(str(taxi_jan_path))
+    taxi_feb = pq.read_table(str(taxi_feb_path))
+
+    mo.md(f"""
     **🚕 NYC Taxi Data Loaded Successfully!**
 
     Two months of NYC Yellow Taxi data loaded (January and February 2024)
+
+    **Data Paths:**
+    - January: `{taxi_jan_path}`
+    - February: `{taxi_feb_path}`
     """)
     return taxi_feb, taxi_jan
 

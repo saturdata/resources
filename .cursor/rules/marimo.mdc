@@ -1,0 +1,97 @@
+---
+alwaysApply: true
+---
+
+# Marimo Python Notebooks: Cursor Rules & Best Practices
+
+marimo is a next-generation Python notebook that's reactive, interactive, and reproducible. To make the most of its unique features, it's helpful to follow a few "cursor rules" or guiding principles. Keeping these in mind will help you create clean, efficient, and shareable notebooks that work like powerful apps.
+
+-----
+
+## 1\. Embrace Reactivity: Think Dataflow, Not Top-to-Bottom
+
+In a traditional notebook, you run cells sequentially. In marimo, cells automatically re-run when their dependencies change.
+
+> **Rule:** Don't assume a cell runs only when you explicitly execute it. Instead, think about the flow of data. When you modify a cell, ask yourself: "Which other cells depend on this output and will re-run?"
+
+**Example:** If cell B uses a variable `x` defined in cell A, changing `x` in A will automatically trigger B to re-run. Structure your logic around these dependencies.
+
+-----
+
+## 2\. Isolate State: One Cell, One Logical Purpose
+
+marimo’s reactivity can be disrupted by hidden state or side effects. The best way to manage this is to keep cells focused.
+
+> **Rule:** Each cell should be responsible for one primary task: defining a function, creating a UI element, loading a dataset, or computing a specific value. Avoid mutating global variables from multiple cells.
+
+**Bad Practice:**
+
+```python
+# Cell 1
+my_list = []
+
+# Cell 2
+my_list.append(1)
+
+# Cell 3
+my_list.append(2)
+```
+
+**Good Practice:**
+
+```python
+# Cell 1
+def process_data(data):
+    # perform operations
+    return processed_data
+
+# Cell 2
+raw_data = [1, 2, 3]
+processed_output = process_data(raw_data)
+```
+
+-----
+
+## 3\. Use UI Elements for Interactivity
+
+marimo's strength lies in its interactive UI elements. Use them to control your notebook's logic instead of constantly editing code.
+
+> **Rule:** If you find yourself manually changing a value in a cell to see different results, replace it with a UI element like a slider, dropdown, or text input.
+
+**Example:** Instead of `threshold = 0.5`, use `threshold = mo.ui.slider(0, 1, step=0.1)`. Then, reference `threshold.value` in other cells. Your notebook becomes an interactive tool.
+
+-----
+
+## 4\. Be Mindful of Expensive Computations
+
+Since cells re-run automatically, long-running computations can slow down your notebook.
+
+> **Rule:** Isolate expensive operations (e.g., loading large files, training a model) in their own cells. Use caching or conditional execution if necessary.
+
+**Tip:** marimo's dataflow graph is smart. An expensive cell will only re-run if its direct dependencies change. You can also wrap functions with `@functools.lru_cache` for simple in-memory caching.
+
+-----
+
+## 5\. Keep Notebooks Reproducible
+
+A key goal of marimo is reproducibility. A notebook should produce the same results every time it's run from scratch.
+
+> **Rule:** Avoid relying on hidden state, external files that might change, or random seeds that aren't fixed. Define all variables and imports explicitly within the notebook.
+
+**Check:** Periodically restart the kernel and run all cells to ensure your notebook is fully reproducible. If it fails, you likely have an issue with execution order or hidden state.
+
+-----
+
+## 6\. Name Your UI Elements Intuitively
+
+When you create a UI element, its variable name becomes its label in the notebook.
+
+> **Rule:** Use clear, descriptive names for your UI elements. This makes your final notebook or app much more user-friendly. `date_range_selector` is better than `s1`.
+
+-----
+
+## 7\. Think of Your Notebook as an App
+
+The best marimo notebooks feel less like static documents and more like interactive applications.
+
+> **Rule:** Design your notebook with an end-user in mind, even if that user is just you. Group related cells, use markdown for explanations, and arrange UI elements to create a clean, intuitive layout.
