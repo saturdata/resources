@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.18.0"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # SQL for Data People
 
     This notebook provides hands-on, executable examples of advanced PostgreSQL concepts using real transaction and NYC taxi data.
@@ -25,8 +24,7 @@ def _(mo):
     8. **Performance Optimization** - Query analysis and debugging techniques
 
     Navigate through the cells sequentially for the best learning experience!
-    """
-    )
+    """)
     return
 
 
@@ -120,7 +118,9 @@ def _(DATA_DIR, mo, pl):
 
 @app.cell
 def _(mo):
-    mo.md("""**Schema:**""")
+    mo.md("""
+    **Schema:**
+    """)
     return
 
 
@@ -133,7 +133,9 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md("""**Sample Data:**""")
+    mo.md("""
+    **Sample Data:**
+    """)
     return
 
 
@@ -179,7 +181,9 @@ def _(DATA_DIR, mo, pq):
 
 @app.cell
 def _(mo):
-    mo.md("""**Dataset Overview:**""")
+    mo.md("""
+    **Dataset Overview:**
+    """)
     return
 
 
@@ -223,13 +227,11 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ### ROW_NUMBER() - Sequential Numbering
 
     **ROW_NUMBER()** assigns unique sequential integers to rows within partitions:
-    """
-    )
+    """)
     return
 
 
@@ -256,20 +258,20 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     💡 **Key Insights:**
     - `row_num_by_region`: Sequential numbering within each region by date
     - `row_num_by_amount`: Overall ranking by transaction amount (highest first)
     - Notice how each row gets a unique number even for tied values
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### RANK() vs DENSE_RANK() - Handling Ties""")
+    mo.md("""
+    ### RANK() vs DENSE_RANK() - Handling Ties
+    """)
     return
 
 
@@ -303,21 +305,21 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     🎯 **Understanding the Differences:**
     - **ROW_NUMBER()**: Always increments sequentially (1, 2, 3, 4, 5...) even with ties - each row gets a unique number
     - **RANK()**: Leaves gaps after tied values (1, 2, 2, 4, 5...)
     - **DENSE_RANK()**: No gaps after tied values (1, 2, 2, 3, 4...)
     - **NTILE(5)**: Divides data into 5 equal-sized groups (quintiles)
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Window Aggregations - Running Totals and Moving Averages""")
+    mo.md("""
+    ### Window Aggregations - Running Totals and Moving Averages
+    """)
     return
 
 
@@ -369,8 +371,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo, window_agg_result):
-    mo.md(
-        f"""
+    mo.md(f"""
     **📈 Running Calculations and Moving Averages Results:**
 
     **Dataset Overview:**
@@ -381,14 +382,15 @@ def _(mo, window_agg_result):
     🔍 **Window Frame Explanation:**
     - `ROWS UNBOUNDED PRECEDING`: From start to current row (running total)
     - `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`: 7-day moving window
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### LAG() and LEAD() - Accessing Previous/Next Values""")
+    mo.md("""
+    ### LAG() and LEAD() - Accessing Previous/Next Values
+    """)
     return
 
 
@@ -439,8 +441,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     💡 **Advanced Window Functions:**
     - **LAG(column, 1)**: Previous row value (great for month-over-month analysis)
     - **LEAD(column, 1)**: Next row value (forecasting context)
@@ -451,29 +452,30 @@ def _(mo):
     - Track month-over-month growth rates
     - Compare current performance to baseline (first month)
     - Identify trends and seasonality patterns
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    """
-    # Advanced PostgreSQL Commands
-
-    Exploring powerful PostgreSQL features for complex analytical scenarios.
-    """
-    mo.md("""
-    ## 🚀 Advanced PostgreSQL Commands
-
-    Moving beyond basic SQL to leverage PostgreSQL's advanced analytical capabilities.
     """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### QUALIFY Clause - Filtering Window Function Results""")
+    """
+    # Advanced DuckDB Commands
+
+    Exploring powerful DuckDB features for complex analytical scenarios.
+    """
+    mo.md("""
+    ## 🚀 Advanced DuckDB Commands
+
+    Moving beyond basic SQL to leverage DuckDB's advanced analytical capabilities.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ### QUALIFY Clause - Filtering Window Function Results
+    """)
     return
 
 
@@ -509,8 +511,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **Why QUALIFY is Powerful:**
     - ✅ Can filter directly on window function results
     - ✅ More readable than subqueries for this use case
@@ -524,14 +525,15 @@ def _(mo):
     ) ranked
     WHERE rank <= 3;
     ```
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### FILTER Clause - Conditional Aggregations""")
+    mo.md("""
+    ### FILTER Clause - Conditional Aggregations
+    """)
     return
 
 
@@ -571,8 +573,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **💡 FILTER Clause Benefits:**
     - **Single Query**: Calculate multiple conditional metrics in one pass
     - **Performance**: More efficient than multiple subqueries
@@ -582,14 +583,15 @@ def _(mo):
     - Compare promo code effectiveness across regions
     - Identify which promotions drive higher average prices
     - Analyze revenue distribution by promotion type
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Statistical Functions with WITHIN GROUP""")
+    mo.md("""
+    ### Statistical Functions with WITHIN GROUP
+    """)
     return
 
 
@@ -637,8 +639,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🎯 Statistical Functions Explained:**
     - **PERCENTILE_CONT(0.5)**: Continuous percentile (median)
     - **WITHIN GROUP (ORDER BY ...)**: Specifies ordering for percentile calculations
@@ -649,8 +650,7 @@ def _(mo):
     - **Outlier Detection**: Use IQR (Q3 - Q1) * 1.5 rule
     - **Regional Comparison**: Compare distributions across regions
     - **Pricing Strategy**: Understand transaction amount patterns
-    """
-    )
+    """)
     return
 
 
@@ -671,7 +671,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### CTE Approach - Complex Multi-Step Analysis""")
+    mo.md("""
+    ### CTE Approach - Complex Multi-Step Analysis
+    """)
     return
 
 
@@ -735,21 +737,21 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🎯 When CTEs Excel:**
     - **Complex Logic**: Multiple transformation steps
     - **Readability**: Clear, logical flow from raw data to insights
     - **Reusability**: Same CTE referenced multiple times
     - **Maintainability**: Easy to modify individual steps
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Subquery Approach - Simple Filtering and Comparisons""")
+    mo.md("""
+    ### Subquery Approach - Simple Filtering and Comparisons
+    """)
     return
 
 
@@ -805,15 +807,13 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🎯 When Subqueries Excel:**
     - **Simple Filtering**: WHERE clause with EXISTS or IN
     - **Correlated Operations**: Row-by-row comparisons
     - **Performance**: Often optimized better by query planner
     - **Memory Efficiency**: No intermediate result materialization
-    """
-    )
+    """)
     return
 
 
@@ -879,7 +879,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### Simple CTE Example - Customer Analysis""")
+    mo.md("""
+    ### Simple CTE Example - Customer Analysis
+    """)
     return
 
 
@@ -921,7 +923,9 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md("""### Simple Subquery Example - Equivalent Analysis""")
+    mo.md("""
+    ### Simple Subquery Example - Equivalent Analysis
+    """)
     return
 
 
@@ -1048,13 +1052,45 @@ def _():
                 formatted_lines.append(f"  • {detail}")
 
         return "\n".join(formatted_lines)
-
     return format_query_plan, format_query_plan_tree
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Execution Plan Comparison""")
+    mo.md("""
+    ### Execution Plan Comparison
+    """)
+    return
+
+
+@app.cell
+def _(mo, transactions):
+    mo.sql("""WITH customer_totals AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as transaction_count,
+                SUM(price * quantity) as total_spent
+            FROM transactions
+            WHERE date >= '2024-01-01'
+            GROUP BY customer_id
+        ),
+        top_customers AS (
+            SELECT 
+                customer_id,
+                transaction_count,
+                total_spent,
+                ROUND(total_spent / transaction_count, 2) as avg_per_transaction
+            FROM customer_totals
+            WHERE total_spent > 300
+        )
+        SELECT 
+            customer_id,
+            transaction_count,
+            total_spent,
+            avg_per_transaction
+        FROM top_customers
+        ORDER BY total_spent DESC
+        LIMIT 10""")
     return
 
 
@@ -1228,7 +1264,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### Manual Pivot - Sales by Region and Month""")
+    mo.md("""
+    ### Manual Pivot - Sales by Region and Month
+    """)
     return
 
 
@@ -1263,8 +1301,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🔧 Pivot Technique Explained:**
     - **CASE WHEN**: Conditionally aggregate values for each region
     - **COALESCE**: Handle NULL values (months with no sales in a region)
@@ -1274,14 +1311,15 @@ def _(mo):
     - **Reporting**: Month-over-month regional performance
     - **Dashboards**: Wide format for visualization tools
     - **Analysis**: Easy comparison across categories
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Advanced Pivot - Customer Segments by Promo Code Usage""")
+    mo.md("""
+    ### Advanced Pivot - Customer Segments by Promo Code Usage
+    """)
     return
 
 
@@ -1344,8 +1382,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **💡 Business Insights:**
     - **Promo Effectiveness**: Which promotions appeal to each spending tier?
     - **Customer Behavior**: Do high spenders use promotions differently?
@@ -1355,14 +1392,15 @@ def _(mo):
     - **Multi-dimensional Analysis**: Customer tier × Promo code usage
     - **Percentage Calculations**: Understanding proportional preferences
     - **Segmentation Insights**: Behavioral patterns by customer value
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### UNPIVOT - Converting Wide to Long Format""")
+    mo.md("""
+    ### UNPIVOT - Converting Wide to Long Format
+    """)
     return
 
 
@@ -1398,8 +1436,7 @@ def _(mo, transactions):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🛠️ UNPIVOT Techniques:**
     - **UNION ALL**: Most common method for unpivoting in PostgreSQL
     - **VALUES Clause**: Alternative approach for smaller datasets
@@ -1409,8 +1446,7 @@ def _(mo):
     - **Data Integration**: Combining data from different sources
     - **Visualization**: Many tools prefer long format
     - **Analysis**: Easier to filter and aggregate normalized data
-    """
-    )
+    """)
     return
 
 
@@ -1432,7 +1468,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### INSERT INTO - Not Idempotent (Creates Duplicates)""")
+    mo.md("""
+    ### INSERT INTO - Not Idempotent (Creates Duplicates)
+    """)
     return
 
 
@@ -1455,12 +1493,14 @@ def _(mo, transactions):
         SELECT 'Current table state:' as status, COUNT(*) as row_count FROM customer_sample;
         """
     )
-    return (customer_sample,)
+    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""**Current Table Contents:**""")
+    mo.md("""
+    **Current Table Contents:**
+    """)
     return
 
 
@@ -1479,7 +1519,9 @@ def _(customer_sample, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### CREATE TABLE AS - Idempotent (Same Result Every Time)""")
+    mo.md("""
+    ### CREATE TABLE AS - Idempotent (Same Result Every Time)
+    """)
     return
 
 
@@ -1507,12 +1549,14 @@ def _(mo, transactions):
         SELECT 'Idempotent operation completed' as status, COUNT(*) as row_count FROM customer_summary_idempotent;
         """
     )
-    return (customer_summary_idempotent,)
+    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""**Idempotent Table Contents:**""")
+    mo.md("""
+    **Idempotent Table Contents:**
+    """)
     return
 
 
@@ -1536,8 +1580,7 @@ def _(customer_summary_idempotent, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🎯 Key Differences:**
 
     **INSERT INTO (Not Idempotent):**
@@ -1553,8 +1596,7 @@ def _(mo):
     **💡 When to Use Each:**
     - **INSERT INTO**: When you need to add new records to existing data
     - **CREATE TABLE AS**: When you want to create/refresh a complete dataset
-    """
-    )
+    """)
     return
 
 
@@ -1817,7 +1859,9 @@ def _(mo, performance_query):
 
 @app.cell
 def _(mo):
-    mo.md("""**✅ Validation Results from Our Query:**""")
+    mo.md("""
+    **✅ Validation Results from Our Query:**
+    """)
     return
 
 
@@ -1830,8 +1874,7 @@ def _(mo, validation_result):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     **🎯 Validation Insights:**
     - **Logical Segments**: High Value customers have higher spending ranges
     - **Frequency Alignment**: High Frequency customers have higher transaction counts
@@ -1844,8 +1887,7 @@ def _(mo):
     - **LIMIT**: Use small samples during development
     - **Intermediate CTEs**: Inspect each transformation step
     - **Data Profiling**: Understand your data distribution patterns
-    """
-    )
+    """)
     return
 
 
