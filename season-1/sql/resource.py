@@ -9,14 +9,14 @@ def _(mo):
     mo.md(r"""
     # SQL for Data People
 
-    This notebook provides hands-on, executable examples of advanced PostgreSQL concepts using real transaction and NYC taxi data.
+    This notebook provides hands-on, executable examples of advanced DuckDB SQL concepts using real transaction and NYC taxi data.
 
     **📚 Reference:** This notebook follows marimo's SQL integration pattern. For more details, see the [DuckDB marimo guide](https://duckdb.org/docs/stable/guides/python/marimo).
 
     ## Learning Path
     1. **Setup and Data Loading** - Initialize environment and load datasets
     2. **Window Functions** - Ranking, aggregation, and analytical functions
-    3. **Advanced PostgreSQL Commands** - QUALIFY, LATERAL, FILTER, and more
+    3. **Advanced DuckDB Commands** - QUALIFY, LATERAL, FILTER, and more
     4. **CTE vs Subquery Patterns** - Performance and readability comparisons
     5. **PIVOT/UNPIVOT Operations** - Data transformation techniques
     6. **Advanced SQL Patterns** - Gap analysis, deduplication, and statistical functions
@@ -601,33 +601,33 @@ def _(mo, transactions):
     _stats_result = mo.sql(
         f"""
         WITH transaction_amounts AS (
-            SELECT 
+            SELECT
                 region,
                 price * quantity as amount
             FROM transactions
             WHERE date >= '2024-01-01'
         )
-        SELECT 
+        SELECT
             region,
             COUNT(*) as transaction_count,
 
             -- Central tendency
             ROUND(AVG(amount), 2) as mean_amount,
-            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount), 2) as median_amount,
+            ROUND(median(amount), 2) as median_amount,
 
-            -- Quartiles
-            ROUND(PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY amount), 2) as q1_amount,
-            ROUND(PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY amount), 2) as q3_amount,
+            -- Quartiles (using quantile_cont for percentiles)
+            ROUND(quantile_cont(amount, 0.25), 2) as q1_amount,
+            ROUND(quantile_cont(amount, 0.75), 2) as q3_amount,
 
-            -- Spread measures  
+            -- Spread measures
             ROUND(STDDEV(amount), 2) as std_deviation,
             ROUND(MAX(amount) - MIN(amount), 2) as range_amount,
 
             -- Extreme values
             ROUND(MIN(amount), 2) as min_amount,
             ROUND(MAX(amount), 2) as max_amount,
-            ROUND(PERCENTILE_CONT(0.01) WITHIN GROUP (ORDER BY amount), 2) as p1_amount,
-            ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY amount), 2) as p99_amount
+            ROUND(quantile_cont(amount, 0.01), 2) as p1_amount,
+            ROUND(quantile_cont(amount, 0.99), 2) as p99_amount
 
         FROM transaction_amounts
         GROUP BY region
@@ -640,11 +640,17 @@ def _(mo, transactions):
 @app.cell
 def _(mo):
     mo.md("""
-    **🎯 Statistical Functions Explained:**
-    - **PERCENTILE_CONT(0.5)**: Continuous percentile (median)
-    - **WITHIN GROUP (ORDER BY ...)**: Specifies ordering for percentile calculations
-    - **Quartiles (Q1, Q3)**: 25th and 75th percentiles for outlier detection
-    - **P1, P99**: 1st and 99th percentiles to identify extreme values
+    **🎯 DuckDB Statistical Functions Explained:**
+    - **median(amount)**: Native DuckDB function for median calculation
+    - **quantile_cont(amount, p)**: Continuous quantile/percentile function
+        - p=0.25 → Q1 (first quartile)
+        - p=0.50 → Median (same as median() function)
+        - p=0.75 → Q3 (third quartile)
+        - p=0.01/0.99 → Extreme percentiles for outlier detection
+
+    **Alternative Approaches:**
+    - DuckDB also supports SQL standard `PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY amount)`
+    - For multiple quantiles: `quantile_cont(amount, [0.25, 0.5, 0.75])` returns a list
 
     **Business Applications:**
     - **Outlier Detection**: Use IQR (Q3 - Q1) * 1.5 rule
@@ -1199,7 +1205,7 @@ def _(mo):
 
     **For Simple Queries (like our examples):**
     - Both CTE and subquery approaches often produce **identical or very similar plans**
-    - Modern query optimizers (DuckDB, PostgreSQL) are smart enough to recognize equivalent logic
+    - Modern query optimizers like DuckDB are smart enough to recognize equivalent logic
     - The optimizer may "flatten" CTEs into subqueries internally for better performance
 
     **Optimal Plan Characteristics:**
@@ -1217,7 +1223,7 @@ def _(mo):
     3. **Minimal Materialization**
        - ✅ Subqueries often avoid intermediate result materialization
        - ⚠️ CTEs may materialize results (though modern optimizers optimize this)
-       - DuckDB and PostgreSQL 12+ often inline CTEs for better performance
+       - DuckDB often inlines CTEs for better performance when beneficial
 
     ### When Plans Diverge
 
@@ -1234,8 +1240,8 @@ def _(mo):
     ### Real-World Optimization Tips
 
     1. **Start with Readability**: Write CTEs for clarity, especially for complex logic
-    2. **Measure Performance**: Use `EXPLAIN ANALYZE` with actual data volumes
-    3. **Consider Materialized CTEs**: PostgreSQL 12+ allows `WITH ... AS MATERIALIZED`
+    2. **Measure Performance**: Use `EXPLAIN` or `EXPLAIN ANALYZE` with actual data volumes
+    3. **Trust the Optimizer**: DuckDB's query optimizer is highly sophisticated
     4. **Watch for Correlation**: Correlated subqueries can be performance killers
     5. **Index Appropriately**: The best query plan depends on having the right indexes
 
@@ -1252,12 +1258,13 @@ def _(mo):
     """
     # PIVOT and UNPIVOT Operations
 
-    Demonstrating data transformation techniques in PostgreSQL/DuckDB.
+    Demonstrating data transformation techniques using DuckDB's native PIVOT and UNPIVOT operators.
     """
     mo.md("""
     ## 🔄 PIVOT and UNPIVOT Operations
 
-    PostgreSQL doesn't have native PIVOT/UNPIVOT operators, but we can achieve the same results using various techniques.
+    DuckDB provides native PIVOT and UNPIVOT operators (since v0.8.0) for efficient data transformation.
+    We'll explore both native syntax and manual techniques for comparison.
     """)
     return
 
@@ -1265,7 +1272,9 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md("""
-    ### Manual Pivot - Sales by Region and Month
+    ### Native DuckDB PIVOT - Sales by Region and Month
+
+    DuckDB's native PIVOT syntax provides a clean, declarative approach to data transformation.
     """)
     return
 
@@ -1302,10 +1311,22 @@ def _(mo, transactions):
 @app.cell
 def _(mo):
     mo.md("""
-    **🔧 Pivot Technique Explained:**
+    **🔧 Manual Pivot Technique Explained:**
     - **CASE WHEN**: Conditionally aggregate values for each region
     - **COALESCE**: Handle NULL values (months with no sales in a region)
     - **GROUP BY month**: Collapse regions into columns for each month
+
+    **💡 DuckDB Native PIVOT Alternative:**
+    DuckDB also supports native PIVOT syntax (cleaner for simple cases):
+    ```sql
+    PIVOT monthly_regional_sales
+    ON region
+    USING sum(sales)
+    GROUP BY month;
+    ```
+
+    Note: The manual CASE WHEN approach shown above gives you more control over
+    column names and ordering, which is often preferred for reporting.
 
     **Use Cases:**
     - **Reporting**: Month-over-month regional performance
@@ -1438,9 +1459,28 @@ def _(mo, transactions):
 def _(mo):
     mo.md("""
     **🛠️ UNPIVOT Techniques:**
-    - **UNION ALL**: Most common method for unpivoting in PostgreSQL
+    - **UNION ALL**: Manual method shown above for educational purposes
+    - **Native UNPIVOT**: DuckDB's built-in UNPIVOT operator (recommended)
     - **VALUES Clause**: Alternative approach for smaller datasets
     - **LATERAL Joins**: More complex but flexible unpivoting
+
+    **💡 DuckDB Native UNPIVOT:**
+    ```sql
+    UNPIVOT pivoted_data
+    ON north_sales, south_sales, east_sales, west_sales
+    INTO
+        NAME region
+        VALUE sales;
+    ```
+
+    Or using SQL Standard syntax:
+    ```sql
+    FROM pivoted_data
+    UNPIVOT (
+        sales
+        FOR region IN (north_sales, south_sales, east_sales, west_sales)
+    );
+    ```
 
     **When to UNPIVOT:**
     - **Data Integration**: Combining data from different sources
@@ -1764,8 +1804,8 @@ def _(mo):
     4. **Window Function Efficiency**: Used only in final SELECT to minimize computation
 
     **📈 Monitoring Query Performance:**
-    - **DuckDB**: Provides automatic query optimization
-    - **PostgreSQL**: Use `EXPLAIN ANALYZE` for detailed execution plans  
+    - **DuckDB**: Provides automatic query optimization and built-in profiling
+    - **EXPLAIN**: Use `EXPLAIN` to see query plans, `EXPLAIN ANALYZE` for execution stats
     - **Key Metrics**: Execution time, memory usage, rows processed
     - **Optimization Focus**: Reduce data movement, leverage indexes, minimize sorts
     """)
@@ -1920,11 +1960,11 @@ def _(mo, taxi_summary_result, transactions):
     - LAG/LEAD for time series analysis
     - Frame specifications and performance considerations
 
-    **2. Advanced PostgreSQL Commands**
+    **2. Advanced DuckDB Commands**
     - QUALIFY clause for filtering window functions
-    - FILTER clause for conditional aggregations  
+    - FILTER clause for conditional aggregations
     - WITHIN GROUP for statistical calculations
-    - Array and JSON operations
+    - Advanced SQL operators and functions
 
     **3. CTE vs Subquery Framework**
     - Performance trade-offs and decision matrix
