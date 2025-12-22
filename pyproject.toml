@@ -16,6 +16,7 @@ dependencies = [
     "duckdb>=1.4.1",
     "sqlglot>=27.26.0",
     "pyzmq>=27.1.0",
+    "jupyter>=1.0.0",
 ]
 
 [dependency-groups]
