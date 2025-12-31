@@ -7,7 +7,7 @@ Covers Seaborn plotting, matplotlib styling, and visualization best practices
 
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.18.1"
 app = marimo.App(width="medium")
 
 
@@ -19,25 +19,25 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Data Visualization in Python
     Saturdata: Season 1
 
     This notebook focuses on creating effective visualizations including:
     - Seaborn statistical plotting functions
     - Plotly interactive charts and dashboards
-    - Matplotlib styling and customization  
+    - Matplotlib styling and customization
     - Best practices for business presentations
     - Converting between Polars and pandas for visualization
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Setup""")
+    mo.md(r"""
+    ## Setup
+    """)
     return
 
 
@@ -52,11 +52,12 @@ def _():
     import plotly.express as px
     import plotly.graph_objects as go
     import warnings
+    from pathlib import Path
 
     warnings.filterwarnings("ignore")
 
     print("✅ Data visualization libraries imported successfully")
-    return go, np, pl, plt, px, sns
+    return Path, go, np, pl, plt, px, sns
 
 
 @app.cell
@@ -68,15 +69,13 @@ def _(sns):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Seaborn visualizations
 
     Seaborn provides high-level, statistically-oriented plotting functions with beautiful default themes (see `sns.set()`) and color palettes that make creating publication-quality visualizations much faster than matplotlib's low-level API. It automatically handles pandas DataFrames, computes statistical aggregations (like confidence intervals), and produces complex multi-plot layouts with single function calls, whereas matplotlib would require dozens of lines of manual configuration to achieve the same results.
 
     Note: Seaborn works best with pandas. To get the best of both worlds, we recommend processing your data with Polars and then converting to pandas for viz.
-    """
-    )
+    """)
     return
 
 
@@ -163,12 +162,10 @@ def _(np, pl, plt, sns):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## The power of sns.set()
     How seaborn styling affects all matplotlib plots
-    """
-    )
+    """)
     return
 
 
@@ -214,12 +211,10 @@ def _(plt, viz_data_pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Business visualization example
     Multi-panel layouts for comprehensive analysis
-    """
-    )
+    """)
     return
 
 
@@ -271,12 +266,10 @@ def _(business_data, plt, sns):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## A/B test visualization
     Effective ways to show statistical comparisons
-    """
-    )
+    """)
     return
 
 
@@ -309,25 +302,28 @@ def _(np):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Plotly: Interactive visualizations
     Modern, interactive charts for web-based analytics
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""Plotly creates interactive, web-based visualizations that allow users to hover, zoom, pan, and explore data dynamically. Unlike static matplotlib/seaborn charts, Plotly charts are JavaScript-based and perfect for dashboards, reports, and exploratory analysis where interactivity enhances understanding.""")
+    mo.md(r"""
+    Plotly creates interactive, web-based visualizations that allow users to hover, zoom, pan, and explore data dynamically. Unlike static matplotlib/seaborn charts, Plotly charts are JavaScript-based and perfect for dashboards, reports, and exploratory analysis where interactivity enhances understanding.
+    """)
     return
 
 
 @app.cell
-def _(pl):
+def _(Path, pl):
     # Load the transactions data for Plotly examples
-    transactions = pl.read_csv("data/transactions_synthetic.csv")
+    # Use absolute path based on notebook location
+    notebook_dir = Path(__file__).parent
+    data_path = notebook_dir.parent / "data" / "transactions_synthetic.csv"
+    transactions = pl.read_csv(data_path)
 
     # Parse date and add derived columns for better visualizations
     transactions_enriched = transactions.with_columns(
@@ -508,8 +504,7 @@ def _(pl, px, transactions_enriched):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     **Key Plotly Benefits:**
 
     - **Interactivity**: Hover to see data points, zoom into regions, pan across time
@@ -517,19 +512,16 @@ def _(mo):
     - **Rich Chart Types**: From basic plots to advanced 3D and geographic visualizations
     - **Easy Export**: Save as interactive HTML or static images
     - **Marimo Integration**: Charts render natively in marimo notebooks
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Advanced visualization techniques
     Professional presentation tips
-    """
-    )
+    """)
     return
 
 
@@ -576,8 +568,7 @@ def _(np, pl, plt, sns):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Summary
 
     This notebook demonstrated:
@@ -596,8 +587,7 @@ def _(mo):
     - Choose plot types that match your data story and audience needs
     - Convert from Polars to pandas only when needed for visualization
     - Professional styling makes data more persuasive and trustworthy
-    """
-    )
+    """)
     return
 
 
