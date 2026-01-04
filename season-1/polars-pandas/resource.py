@@ -3,8 +3,8 @@ Episode 1: Data Mechanic's Garage
 Performance comparison of Python data processing libraries
 
 Interactive marimo notebook demonstrating:
-- Pandas (baseline)
-- Pandas + PyArrow (quick win)
+- pandas (baseline)
+- pandas + PyArrow (quick win)
 - Polars (modern engine)
 - DuckDB (SQL interface)
 
@@ -30,7 +30,7 @@ def _(mo):
 
     ## Performance Tuning for Python Data Processing
 
-    Welcome to the Data Mechanic's Garage! Today we're taking a "classic" Pandas script and giving it a full performance upgrade. We'll explore four approaches to data processing and see just how fast modern tools can be.
+    Welcome to the Data Mechanic's Garage! Today we're taking a "classic" pandas script and giving it a full performance upgrade. We'll explore four approaches to data processing and see just how fast modern tools can be.
 
     ### Our Test Vehicle 🚗
     - **Dataset**: 5 million e-commerce transactions (~1GB)
@@ -38,8 +38,8 @@ def _(mo):
     - **Goal**: Measure time and memory for each library
 
     ### The Lineup
-    1. **Classic Pandas** - The reliable workhorse we all know
-    2. **Pandas + PyArrow** - A simple bolt-on upgrade
+    1. **Classic pandas** - The reliable workhorse we all know
+    2. **pandas + PyArrow** - A simple bolt-on upgrade
     3. **Polars** - The modern parallel processing engine
     4. **DuckDB** - SQL power with in-memory analytics
     """)
@@ -172,9 +172,9 @@ def _(mo):
     mo.md("""
     ---
 
-    # 🚗 The Classic: Pandas Baseline
+    # 🚗 The Classic: pandas Baseline
 
-    Our starting point - a traditional Pandas workflow that many of us run daily. It's familiar, reliable, but not particularly fast.
+    Our starting point - a traditional pandas workflow that many of us run daily. It's familiar, reliable, but not particularly fast.
 
     ### The Workflow:
     1. Load 5M transactions from CSV
@@ -188,7 +188,7 @@ def _(mo):
 @app.cell
 def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
     def pandas_baseline():
-        """Classic Pandas implementation."""
+        """Classic pandas implementation."""
         # 1. Load data
         transactions = pd.read_csv(TRANSACTIONS_FILE)
         customers = pd.read_csv(CUSTOMERS_FILE)
@@ -215,14 +215,14 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
         return len(result)
 
     # Run benchmark
-    pandas_result = benchmark_operation(pandas_baseline, "Classic Pandas")
+    pandas_result = benchmark_operation(pandas_baseline, "Classic pandas")
     return (pandas_result,)
 
 
 @app.cell
 def _(mo, pandas_result):
     mo.md(f"""
-    ### 📈 Classic Pandas Results
+    ### 📈 Classic pandas Results
 
     - **Time**: {pandas_result["time_seconds"]} seconds
     - **Memory**: {pandas_result["memory_mb"]} MB
@@ -238,9 +238,9 @@ def _(mo):
     mo.md("""
     ---
 
-    # ⚡ The Bolt-On Upgrade: Pandas + PyArrow
+    # ⚡ The Bolt-On Upgrade: pandas + PyArrow
 
-    Before we rewrite everything, let's try a **simple one-line change**. PyArrow is a high-performance backend that Pandas can use under the hood.
+    Before we rewrite everything, let's try a **simple one-line change**. PyArrow is a high-performance backend that pandas can use under the hood.
 
     ### What Changes:
     - Add `engine='pyarrow'` to CSV reading
@@ -254,7 +254,7 @@ def _(mo):
 @app.cell
 def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
     def pandas_pyarrow():
-        """Pandas with PyArrow backend for improved performance."""
+        """pandas with PyArrow backend for improved performance."""
         # 1. Load data with PyArrow engine
         transactions = pd.read_csv(
             TRANSACTIONS_FILE, engine="pyarrow", dtype_backend="pyarrow"
@@ -285,7 +285,7 @@ def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, pd):
         return len(result)
 
     # Run benchmark
-    pandas_pyarrow_result = benchmark_operation(pandas_pyarrow, "Pandas + PyArrow")
+    pandas_pyarrow_result = benchmark_operation(pandas_pyarrow, "pandas + PyArrow")
     return (pandas_pyarrow_result,)
 
 
@@ -296,7 +296,7 @@ def _(mo, pandas_pyarrow_result, pandas_result):
     )
     mo.md(
         f"""
-        ### 📈 Pandas + PyArrow Results
+        ### 📈 pandas + PyArrow Results
 
         - **Time**: {pandas_pyarrow_result["time_seconds"]} seconds
         - **Memory**: {pandas_pyarrow_result["memory_mb"]} MB
@@ -401,7 +401,7 @@ def _(mo):
 
     ### Key Performance Consideration:
     For this benchmark, we load the CSV **once** and query it multiple times in memory.
-    This matches the Pandas/Polars pattern and avoids re-reading the file.
+    This matches the pandas/Polars pattern and avoids re-reading the file.
 
     **In production**, you can query CSV/Parquet files directly for even better performance:
     ```sql
@@ -466,7 +466,7 @@ def _(
         Uses mo.sql() syntax similar to the SQL notebook pattern, where marimo
         automatically discovers the DuckDB connection.
         """
-        # Load data into tables (materialize once for fair comparison with Pandas/Polars)
+        # Load data into tables (materialize once for fair comparison with pandas/Polars)
         # This avoids re-reading CSV files on each query
         # Use TEMPORARY tables for better memory management
         mo.sql(f"""
@@ -502,7 +502,7 @@ def _(
         """)
 
         # Optimized join query - this is the main operation
-        # Strategy: Use LEFT JOIN to match benchmark (Pandas uses how='left')
+        # Strategy: Use LEFT JOIN to match benchmark (pandas uses how='left')
         # DuckDB's cost-based optimizer will automatically:
         # - Use customers (smaller table, 100K rows) as the build side
         # - Use transactions (larger table, 5M rows) as the probe side
@@ -591,8 +591,18 @@ def _(alt, results_df):
         alt.Chart(results_df)
         .mark_bar()
         .encode(
-            x=alt.X("library:N", sort="-y", title="Library"),
-            y=alt.Y("time_seconds:Q", title="Time (seconds)"),
+            x=alt.X(
+                "library:N", 
+                sort="-y", 
+                title="Library",
+                axis=alt.Axis(labelAngle=-45)
+            ),
+            y=alt.Y(
+                "time_seconds:Q", 
+                title="Time (seconds)",
+                scale=alt.Scale(domain=[0, 3]),
+                axis=alt.Axis(tickCount=7)  # 0, 0.5, 1, 1.5, 2, 2.5, 3
+            ),
             color=alt.Color(
                 "library:N", scale=alt.Scale(scheme="category20"), legend=None
             ),
@@ -601,7 +611,7 @@ def _(alt, results_df):
         .properties(title="Execution Time Comparison", width=400, height=300)
     )
 
-    # Add speedup annotations
+    # Add speedup annotations above the bars
     speedup_text = (
         alt.Chart(results_df)
         .mark_text(dy=-10, fontSize=12, fontWeight="bold")
@@ -609,7 +619,7 @@ def _(alt, results_df):
             x=alt.X("library:N", sort="-y"),
             y="time_seconds:Q",
             text=alt.Text("speedup:Q", format=".1f"),
-            color=alt.value("black"),
+            color=alt.value("white"),
         )
     )
 
@@ -630,8 +640,17 @@ def _(alt, results_df):
         alt.Chart(results_df)
         .mark_bar()
         .encode(
-            x=alt.X("library:N", title="Library"),
-            y=alt.Y("peak_memory_mb:Q", title="Peak Memory (MB)"),
+            x=alt.X(
+                "library:N", 
+                title="Library",
+                axis=alt.Axis(labelAngle=-45)
+            ),
+            y=alt.Y(
+                "peak_memory_mb:Q", 
+                title="Peak Memory (MB)",
+                scale=alt.Scale(domain=[0, 1400]),
+                axis=alt.Axis(tickCount=8)  # 0, 200, 400, 600, 800, 1000, 1200, 1400
+            ),
             color=alt.Color(
                 "library:N", scale=alt.Scale(scheme="category20"), legend=None
             ),
@@ -639,12 +658,26 @@ def _(alt, results_df):
         )
         .properties(title="Peak Memory Usage Comparison", width=400, height=300)
     )
-    return (memory_chart,)
+    
+    # Add memory values as labels above the bars
+    memory_text = (
+        alt.Chart(results_df)
+        .mark_text(dy=-10, fontSize=12, fontWeight="bold")
+        .encode(
+            x=alt.X("library:N"),
+            y="peak_memory_mb:Q",
+            text=alt.Text("peak_memory_mb:Q", format=".1f"),
+            color=alt.value("white"),
+        )
+    )
+    
+    memory_comparison = memory_chart + memory_text
+    return (memory_comparison,)
 
 
 @app.cell
-def _(memory_chart, mo):
-    mo.ui.altair_chart(memory_chart)
+def _(memory_comparison, mo):
+    mo.ui.altair_chart(memory_comparison)
     return
 
 
@@ -657,12 +690,12 @@ def _(mo):
 
     ## When to Use Each Library
 
-    ### Classic Pandas
+    ### Classic pandas
     **Use when:**
     - Working with small datasets (<100K rows)
     - Prototyping and exploratory analysis
-    - Team is most comfortable with Pandas
-    - Integrating with Pandas-specific libraries
+    - Team is most comfortable with pandas
+    - Integrating with pandas-specific libraries
 
     **Avoid when:**
     - Processing large datasets (>1GB)
@@ -671,12 +704,12 @@ def _(mo):
 
     ---
 
-    ### Pandas + PyArrow
+    ### pandas + PyArrow
     **Use when:**
-    - You have existing Pandas code
+    - You have existing pandas code
     - Can't justify a full rewrite
     - Want quick performance wins
-    - Need Pandas compatibility
+    - Need pandas compatibility
 
     **Benefit:**
     - 2-3x speedup with minimal code changes
@@ -692,15 +725,15 @@ def _(mo):
     - Starting new projects
 
     **Benefits:**
-    - 20-30x speedup over baseline Pandas
+    - 20-30x speedup over baseline pandas
     - Lower memory usage
     - Modern, expressive API
     - Prepares you for distributed computing (similar mental model to Spark)
 
     **Trade-offs:**
     - Requires learning new API
-    - Smaller ecosystem than Pandas
-    - Some Pandas features not yet available
+    - Smaller ecosystem than pandas
+    - Some pandas features not yet available
 
     ---
 
@@ -739,7 +772,7 @@ def _(mo):
     Local Development     →    Cloud Platform
     ────────────────────────────────────────
     Polars (parallel)    →    PySpark / Databricks
-    Pandas (single-core) →    Dask / Ray
+    pandas (single-core) →    Dask / Ray
     ```
 
     ---
@@ -749,10 +782,10 @@ def _(mo):
     ### Start New Projects With:
     1. **Polars** if Python-native team
     2. **DuckDB** if SQL-native team
-    3. Either one will be 20-30x faster than classic Pandas
+    3. Either one will be 20-30x faster than classic pandas
 
     ### Migrate Existing Code:
-    1. **Quick wins**: Add PyArrow backend to Pandas (2-3x speedup)
+    1. **Quick wins**: Add PyArrow backend to pandas (2-3x speedup)
     2. **High-impact refactor**: Rewrite hot paths in Polars
     3. **SQL translation**: Move analytics queries to DuckDB
 
@@ -766,7 +799,7 @@ def _(mo):
     ## Learning Path
 
     ### Week 1: Quick Wins
-    - Add PyArrow backend to existing Pandas code
+    - Add PyArrow backend to existing pandas code
     - Measure performance improvements
     - Identify bottlenecks
 
@@ -798,7 +831,7 @@ def _(mo):
     ## Documentation
     - [Polars User Guide](https://pola-rs.github.io/polars-book/)
     - [DuckDB Documentation](https://duckdb.org/docs/)
-    - [Pandas PyArrow Integration](https://pandas.pydata.org/docs/user_guide/pyarrow.html)
+    - [pandas PyArrow Integration](https://pandas.pydata.org/docs/user_guide/pyarrow.html)
 
     ## Further Learning
     - Polars GitHub: https://github.com/pola-rs/polars
