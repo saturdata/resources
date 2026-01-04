@@ -56,7 +56,6 @@ def _():
 
     # Performance monitoring
     import time
-    import tracemalloc
     import psutil
     from pathlib import Path
 
@@ -67,7 +66,7 @@ def _():
     import warnings
 
     warnings.filterwarnings("ignore")
-    return Path, alt, duckdb, pd, pl, psutil, time, tracemalloc
+    return Path, alt, duckdb, pd, pl, psutil, time
 
 
 @app.cell
@@ -127,41 +126,79 @@ def _(mo):
 
     Our benchmark harness tracks:
     - **Execution time** (seconds)
-    - **Memory usage** (MB)
-    - **Peak memory** (MB)
+    - **Memory usage** (MB) - delta from baseline
+    - **Peak memory** (MB) - maximum RSS during execution
+    
+    ### Why We Use Process Memory Monitoring
+    
+    We use `psutil` to continuously sample the process's Resident Set Size (RSS) 
+    during execution. This captures **all** memory allocations, including:
+    - Python heap allocations (pandas, Python objects)
+    - Native library allocations (Polars/Rust, DuckDB/C++, PyArrow)
+    - Memory-mapped files and buffers
+    
+    ⚠️ **Note:** `tracemalloc` only tracks Python heap and misses native memory,
+    which is why Polars (Rust) and DuckDB (C++) would show 0 MB with that approach.
     """)
     return
 
 
 @app.cell
-def _(psutil, time, tracemalloc):
+def _(psutil, time):
+    import threading
+    
     def benchmark_operation(func, label: str) -> dict:
         """
         Benchmark a function with timing and memory tracking.
+        
+        Uses a monitoring thread to continuously sample process memory (RSS)
+        during execution. This captures native memory allocations (e.g., Rust in Polars)
+        that tracemalloc misses since it only tracks Python heap allocations.
 
         Returns:
             dict with library, time_seconds, memory_mb, peak_memory_mb
         """
-        # Start memory tracking
-        tracemalloc.start()
         process = psutil.Process()
+        
+        # Get baseline memory before execution
         mem_before = process.memory_info().rss / 1024 / 1024
-
+        
+        # Track peak memory during execution using a monitoring thread
+        peak_memory = [mem_before]  # Use list for mutable reference in thread
+        monitoring = [True]  # Flag to control monitoring thread
+        
+        def monitor_memory():
+            """Sample memory usage every 10ms during execution."""
+            while monitoring[0]:
+                try:
+                    current_mem = process.memory_info().rss / 1024 / 1024
+                    if current_mem > peak_memory[0]:
+                        peak_memory[0] = current_mem
+                    time.sleep(0.01)  # Sample every 10ms
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    break
+        
+        # Start monitoring thread
+        monitor_thread = threading.Thread(target=monitor_memory, daemon=True)
+        monitor_thread.start()
+        
         # Execute and time
         start = time.perf_counter()
         result = func()
         elapsed = time.perf_counter() - start
-
-        # Capture memory usage
+        
+        # Stop monitoring and wait for thread to finish
+        monitoring[0] = False
+        monitor_thread.join(timeout=1.0)
+        
+        # Final memory reading
         mem_after = process.memory_info().rss / 1024 / 1024
-        current, peak = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
 
         return {
             "library": label,
             "time_seconds": round(elapsed, 2),
             "memory_mb": round(mem_after - mem_before, 1),
-            "peak_memory_mb": round(peak / 1024 / 1024, 1),
+            "peak_memory_mb": round(peak_memory[0] - mem_before, 1),
             "result": result,
         }
     return (benchmark_operation,)
@@ -648,7 +685,7 @@ def _(alt, results_df):
             y=alt.Y(
                 "peak_memory_mb:Q", 
                 title="Peak Memory (MB)",
-                scale=alt.Scale(domain=[0, 1400]),
+                scale=alt.Scale(domain=[0, 2500]),
                 axis=alt.Axis(tickCount=8)  # 0, 200, 400, 600, 800, 1000, 1200, 1400
             ),
             color=alt.Color(
