@@ -13,14 +13,13 @@ With comprehensive timing and memory benchmarking.
 
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.18.4"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -165,7 +164,6 @@ def _(psutil, time, tracemalloc):
             "peak_memory_mb": round(peak / 1024 / 1024, 1),
             "result": result,
         }
-
     return (benchmark_operation,)
 
 
@@ -434,22 +432,29 @@ def _(duckdb, mo):
 
     mo.md("""
     ✅ **DuckDB Connection Established**
-    
+
     Connection configured with:
     - Memory limit: 2GB
     - Threads: Auto-detect (all cores, default)
     - Optimizers: All enabled
-    
+
     💡 **Using `mo.sql()`:**
     - marimo automatically discovers the `conn` variable
     - Use `mo.sql(f"...")` to execute queries with f-string interpolation
     - Returns a DataFrame directly (Polars DataFrame by default)
     """)
-    return (conn,)
+    return
 
 
 @app.cell
-def _(CUSTOMERS_FILE, TRANSACTIONS_FILE, benchmark_operation, conn, mo):
+def _(
+    CUSTOMERS_FILE,
+    TRANSACTIONS_FILE,
+    benchmark_operation,
+    customers,
+    mo,
+    transactions,
+):
     def duckdb_implementation():
         """
         DuckDB SQL-based implementation optimized for performance using mo.sql() syntax.
@@ -800,6 +805,11 @@ def _(mo):
     - DuckDB GitHub: https://github.com/duckdb/duckdb
     - Benchmarks: https://duckdblabs.github.io/db-benchmark/
     """)
+    return
+
+
+@app.cell
+def _():
     return
 
 
