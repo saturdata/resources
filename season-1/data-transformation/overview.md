@@ -14,7 +14,7 @@ Remember when your pandas script that took 45 minutes to run got rewritten in Po
 
 **Vectorization is Everything**: Once you understand that NumPy operations happen on entire arrays at once (not row-by-row), everything clicks. The dot product? It's not just math—it's how you calculate similarities, distances, and relationships efficiently. That correlation coefficient? It's a dot product in disguise.
 
-## Pandas vs. Polars: The Performance Revolution
+## pandas vs. Polars: The Performance Revolution
 
 **The Workplace Reality**: You're in a meeting presenting results when someone asks "can we run this on the full dataset?" In pandas, that question makes you sweat. In Polars, you say "sure, give me two minutes."
 
@@ -24,13 +24,13 @@ Remember when your pandas script that took 45 minutes to run got rewritten in Po
 - 20-30% less memory usage
 - Better type safety means fewer "oops, that column is strings not numbers" moments
 
-**The Misconception**: "Pandas is fine, I know how to use it."
+**The Misconception**: "pandas is fine, I know how to use it."
 
 **The Hard Truth**: Knowing pandas is great. But if you're working with data that doesn't fit in memory, or if you're waiting for transformations to finish, you're not being productive—you're being slow. The real question isn't "can pandas do this?" It's "can pandas do this *fast enough*?"
 
 **When to Use Each**:
 
-- **Pandas**: When you need that one library everyone knows, or when working with small datasets where the overhead doesn't matter. Great for prototyping and when seaborn visualization requires pandas.
+- **pandas**: When you need that one library everyone knows, or when working with small datasets where the overhead doesn't matter. Great for prototyping and when seaborn visualization requires pandas.
 - **Polars**: When performance matters. When memory matters. When you're building production pipelines. When you're tired of waiting.
 
 **The Type System Breakthrough**: Polars doesn't let integers with nulls become floats automatically. That means fewer surprises at 2am when your production pipeline breaks because pandas "helpfully" changed your data types. Type safety = more sleep.

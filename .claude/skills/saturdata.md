@@ -8,7 +8,7 @@
 
 **Learning Philosophy**: Discovery tools, not tutorials. Spark curiosity, build confidence, and create community connections. Users should feel like they learned WITH Shifra and Sam, not FROM them. See `style.md` for complete educational content guidelines.
 
-**Episode Structure**: Progressive complexity across 6 focused topics (SQL, Polars/Pandas, Data Transformation, Visualization, Statistical Testing, Terminal/Git)
+**Episode Structure**: Progressive complexity across 6 focused topics (SQL, Polars/pandas, Data Transformation, Visualization, Statistical Testing, Terminal/Git)
 
 ## Technical Stack
 
@@ -46,7 +46,7 @@ dependencies = [
 | **Marimo** | Interactive notebooks | All episode notebooks |
 | **DuckDB** | In-memory SQL analytics | SQL operations, large dataset queries |
 | **Polars** | High-performance data processing | ETL pipelines, large datasets |
-| **Pandas** | Baseline comparison, visualization prep | Converting Polars for Seaborn/Matplotlib |
+| **pandas** | Baseline comparison, visualization prep | Converting Polars for Seaborn/Matplotlib |
 | **Seaborn** | Statistical visualization | Business dashboards, publication-quality plots |
 | **Plotly** | Interactive web visualizations | Exploratory analysis, presentations |
 
@@ -70,7 +70,7 @@ saturdata/resources/
 │   │   ├── overview.md       # Reference material
 │   │   └── data/             # Episode-specific generated data
 │   ├── sql/                  # SQL for data professionals
-│   ├── data-transformation/  # NumPy, Pandas, Polars patterns
+│   ├── data-transformation/  # NumPy, pandas, Polars patterns
 │   ├── data-visualization/   # Seaborn, Plotly, Matplotlib
 │   ├── statistical-testing/  # SciPy hypothesis testing
 │   └── terminal/             # CLI and Git fundamentals
@@ -253,7 +253,7 @@ result = mo.sql(f"""
 **Key Features**:
 - `mo.sql()` discovers `conn` variable automatically
 - Supports f-string interpolation for Python variables
-- Can query Polars DataFrames, Pandas DataFrames, Arrow tables directly
+- Can query Polars DataFrames, pandas DataFrames, Arrow tables directly
 - Results have `.value` attribute containing DataFrame
 
 ### Interactive Element Patterns
@@ -362,7 +362,7 @@ def benchmark_operation(func: Callable[[], Any], label: str) -> dict:
 
     Args:
         func: Callable that executes the operation to benchmark
-        label: Descriptive label for the operation (e.g., "Pandas GroupBy")
+        label: Descriptive label for the operation (e.g., "pandas GroupBy")
 
     Returns:
         dict with keys: library, time_seconds, memory_mb, peak_memory_mb, result
@@ -393,10 +393,10 @@ def benchmark_operation(func: Callable[[], Any], label: str) -> dict:
 # Usage example
 results = []
 
-# Benchmark Pandas
+# Benchmark pandas
 pandas_result = benchmark_operation(
     lambda: df_pandas.groupby("region")["price"].sum(),
-    "Pandas"
+    "pandas"
 )
 results.append(pandas_result)
 
@@ -421,10 +421,10 @@ polars_result = large_df.group_by("region", "product_id").agg([
     pl.col("quantity").sum().alias("total_quantity")
 ])
 
-# Convert to Pandas only for visualization
+# Convert to pandas only for visualization
 pandas_df = polars_result.to_pandas()
 
-# Visualize with Seaborn (requires Pandas)
+# Visualize with Seaborn (requires pandas)
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -437,7 +437,7 @@ sns.scatterplot(
 plt.title("Price vs Quantity by Region")
 plt.show()
 
-# Or use Plotly (works with Pandas)
+# Or use Plotly (works with pandas)
 import plotly.express as px
 fig = px.scatter(
     pandas_df,
@@ -458,7 +458,7 @@ import marimo as mo
 # Connection setup
 conn = duckdb.connect(":memory:")
 
-# Load data (DuckDB can query Polars/Pandas/Arrow directly)
+# Load data (DuckDB can query Polars/pandas/Arrow directly)
 transactions = pl.read_csv("path/to/data.csv")
 
 # Simple query
@@ -695,7 +695,7 @@ def _(mo):
     **Your Challenge**: Analyze customer purchasing patterns across regions and identify
     the top 3 products per region by revenue.
 
-    **Multiple Approaches Welcome**: Use SQL, Polars, or Pandas - choose what feels natural!
+    **Multiple Approaches Welcome**: Use SQL, Polars, or pandas - choose what feels natural!
     """)
     return
 
@@ -1003,8 +1003,8 @@ From polars-pandas notebook on Apple M1 (16GB RAM):
 
 | Library | Time (seconds) | Speedup | Memory (MB) | Use Case |
 |---------|----------------|---------|-------------|----------|
-| Pandas Classic | 45-60s | 1x (baseline) | ~800MB | Legacy codebases |
-| Pandas + PyArrow | 18-25s | 2.4x | ~400MB | Pandas with columnar backend |
+| pandas Classic | 45-60s | 1x (baseline) | ~800MB | Legacy codebases |
+| pandas + PyArrow | 18-25s | 2.4x | ~400MB | pandas with columnar backend |
 | Polars | 2-3s | 23x | ~200MB | Modern ETL, large datasets |
 | DuckDB | 2-4s | 21x | ~180MB | SQL analytics, in-memory queries |
 

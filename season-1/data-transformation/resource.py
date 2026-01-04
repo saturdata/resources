@@ -2,7 +2,7 @@
 """
 Data Transformation in Python - Marimo Notebook
 ==============================================
-Covers NumPy operations, Pandas vs Polars comparison, and data manipulation patterns
+Covers NumPy operations, pandas vs Polars comparison, and data manipulation patterns
 """
 
 import marimo
@@ -26,7 +26,7 @@ def _(mo):
 
     This notebook focuses on fundamental data transformation operations including:
     - NumPy array operations and statistics
-    - Pandas vs Polars performance and feature comparison
+    - pandas vs Polars performance and feature comparison
     - Data manipulation patterns and best practices
     """
     )
@@ -205,11 +205,11 @@ def _(pd, pl, test_data):
 
     print("=== DATA TYPE INFERENCE COMPARISON ===")
 
-    # Pandas DataFrame
+    # pandas DataFrame
     pandas_df = pd.DataFrame(test_data)
-    print("\nPandas data types:")
+    print("\npandas data types:")
     print(pandas_df.dtypes)
-    print(f"Pandas memory usage: {pandas_df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+    print(f"pandas memory usage: {pandas_df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
 
     # Polars DataFrame
     polars_df = pl.DataFrame(test_data)
@@ -223,12 +223,12 @@ def _(pd, pl, test_data):
 def _(date_strings, pd, pl, time):
     print("\n=== DATE PARSING COMPARISON ===")
 
-    # Pandas date parsing (requires explicit conversion)
+    # pandas date parsing (requires explicit conversion)
     start_time = time.time()
     pandas_dates = pd.to_datetime(date_strings)
     pandas_time = time.time() - start_time
-    print(f"Pandas date parsing time: {pandas_time:.4f} seconds")
-    print(f"Pandas date type: {pandas_dates.dtype}")
+    print(f"pandas date parsing time: {pandas_time:.4f} seconds")
+    print(f"pandas date type: {pandas_dates.dtype}")
 
     # Polars date parsing (automatic with proper schema)
     start_time = time.time()
@@ -244,9 +244,9 @@ def _(date_strings, pd, pl, time):
 def _(data_with_nulls, pd, pl):
     print("\n=== NULL HANDLING COMPARISON ===")
 
-    # Pandas handling (promotes to object/float64)
+    # pandas handling (promotes to object/float64)
     pandas_nulls = pd.DataFrame(data_with_nulls)
-    print("Pandas with nulls:")
+    print("pandas with nulls:")
     print(pandas_nulls.dtypes)
     print("Note: Integers with nulls become float64 in pandas")
 
@@ -263,7 +263,7 @@ def _(large_data, pd, pl):
     # Memory efficiency comparison with large dataset
     print("\n=== MEMORY EFFICIENCY TEST ===")
 
-    # Pandas memory usage
+    # pandas memory usage
     pandas_large = pd.DataFrame(large_data)
     pandas_memory = pandas_large.memory_usage(deep=True).sum() / 1024**2
 
@@ -271,7 +271,7 @@ def _(large_data, pd, pl):
     polars_large = pl.DataFrame(large_data)
     polars_memory = polars_large.estimated_size() / 1024**2
 
-    print(f"Pandas memory usage: {pandas_memory:.2f} MB")
+    print(f"pandas memory usage: {pandas_memory:.2f} MB")
     print(f"Polars memory usage: {polars_memory:.2f} MB")
     print(f"Memory savings with Polars: {(1 - polars_memory/pandas_memory)*100:.1f}%")
     return
@@ -324,7 +324,7 @@ def _(mo):
     This notebook demonstrated:
 
     1. **NumPy Operations**: Fast numerical computations and array operations
-    2. **Polars vs Pandas**: Performance, memory, and type system differences
+    2. **Polars vs pandas**: Performance, memory, and type system differences
     3. **Data Manipulation**: Group operations, filtering, and transformations
     4. **Real-world Applications**: Business data processing workflows
 

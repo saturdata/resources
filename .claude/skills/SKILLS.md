@@ -17,7 +17,7 @@ Create interactive Marimo notebooks that serve as companion resources to Saturda
 
 **Episode Topics**:
 - SQL for data professionals
-- Polars/Pandas performance comparison
+- Polars/pandas performance comparison
 - Data transformation patterns
 - Visualization (Seaborn, Plotly, Matplotlib)
 - Statistical testing with SciPy
@@ -41,61 +41,61 @@ Follow this high-level process when working with Saturdata notebooks:
 
 ### 1. Understand the Task Type
 
-**New Notebook Creation** ’ See Task Template: Creating New Notebooks (below)
+**New Notebook Creation** ï¿½ See Task Template: Creating New Notebooks (below)
 - Setting up directory structure and scaffolding
 - Implementing progressive difficulty levels
 - Integrating educational and technical patterns
 
-**Improvement/Accuracy** ’ See Task Template: Improving Existing Notebooks (below)
+**Improvement/Accuracy** ï¿½ See Task Template: Improving Existing Notebooks (below)
 - Reading and understanding existing notebook structure
 - Verifying technical accuracy with official documentation
 - Preserving educational flow and conversational tone
 
-**Data Work** ’ See saturdata.md "Task Template: Working with Data" (lines 772-857)
+**Data Work** ï¿½ See saturdata.md "Task Template: Working with Data" (lines 772-857)
 - Adding or modifying datasets
 - Updating data loading patterns
 - Validating data schemas and paths
 
 ### 2. Set Up Environment
 
-**Dependencies and Stack** ’ See saturdata.md "Technical Stack & Setup"
+**Dependencies and Stack** ï¿½ See saturdata.md "Technical Stack & Setup"
 - Python 3.11+ with `uv` package manager
 - Core libraries: marimo, polars, pandas, duckdb, numpy, scipy
 - Visualization: matplotlib, seaborn, plotly
 - Data formats: pyarrow (Parquet), CSV
 
-**Directory Structure** ’ See saturdata.md "Directory Structure" (lines 53-87)
+**Directory Structure** ï¿½ See saturdata.md "Directory Structure" (lines 53-87)
 - `season-1/data/` - Shared datasets for all episodes
 - `season-1/{topic}/` - Episode-specific notebooks
 - `season-1/{topic}/resource.py` - Main Marimo notebook (consistent naming)
 
-**Path Setup Pattern** ’ See saturdata.md "File Path Handling" (lines 192-220)
+**Path Setup Pattern** ï¿½ See saturdata.md "File Path Handling" (lines 192-220)
 - **Critical**: Always use absolute paths via `Path` module
 - Standard pattern: `NOTEBOOK_DIR = Path(__file__).parent if "__file__" in dir() else Path.cwd()`
 - Data directory: `DATA_DIR = NOTEBOOK_DIR.parent / "data"`
 
 ### 3. Follow Educational Principles
 
-**Learning Philosophy** ’ See style.md "Core Purpose" (lines 1-12)
+**Learning Philosophy** ï¿½ See style.md "Core Purpose" (lines 1-12)
 - Discovery tools, not tutorials
 - Progressive complexity (3 levels: Just Looking, Getting Hands Dirty, Challenge Accepted)
 - Can be understood without listening to episode
 - 15-30 minutes to complete fully
 
-**Notebook Structure Template** ’ See style.md "Notebook Structure Template" (lines 6-46)
+**Notebook Structure Template** ï¿½ See style.md "Notebook Structure Template" (lines 6-46)
 - Opening hook with episode connection
 - 3 progressive exploration levels
 - Real-world scenario section
 - Discovery bonuses (Easter eggs not in episode)
 - Community engagement section
 
-**Content Tone** ’ See style.md "Language and Tone" (lines 50-68)
+**Content Tone** ï¿½ See style.md "Language and Tone" (lines 50-68)
 - Conversational style ("explaining to a friend")
 - Use hosts' voices: "Sam often encounters..." or "Shifra's favorite trick..."
 - Avoid jargon without context
 - Include humor and relatable frustrations
 
-**Community Engagement** ’ See style.md "Community Engagement Section" (lines 83-100)
+**Community Engagement** ï¿½ See style.md "Community Engagement Section" (lines 83-100)
 - Include #Saturdata hashtag
 - Social sharing prompts
 - Challenge problems for community sharing
@@ -103,86 +103,86 @@ Follow this high-level process when working with Saturdata notebooks:
 
 ### 4. Implement Technical Patterns
 
-**Marimo Cell Structure** ’ See saturdata.md "Marimo Notebook Patterns" (lines 88-191)
-- Standard cell organization: imports ’ path setup ’ data loading ’ content
+**Marimo Cell Structure** ï¿½ See saturdata.md "Marimo Notebook Patterns" (lines 88-191)
+- Standard cell organization: imports ï¿½ path setup ï¿½ data loading ï¿½ content
 - Use `@app.cell` decorator for all cells
 - Return values as tuples: `return (variable,)` for single variables
 - App configuration: `app = marimo.App(width="medium")`
 
-**Data Loading** ’ See saturdata.md "Data Handling Standards" (lines 280-348)
+**Data Loading** ï¿½ See saturdata.md "Data Handling Standards" (lines 280-348)
 - Always use absolute paths with `Path` module
 - Convert `Path` to string when passing to libraries: `pl.read_csv(str(path))`
 - Validate data after loading (check row counts, required columns)
 - Document dataset schema in markdown cells
 
-**DuckDB SQL Integration** ’ See saturdata.md "DuckDB Integration Pattern" (lines 221-257)
+**DuckDB SQL Integration** ï¿½ See saturdata.md "DuckDB Integration Pattern" (lines 221-257)
 - Use `mo.sql()` for queries (auto-discovers `conn` variable)
 - Native DuckDB functions preferred: `median(x)` not `PERCENTILE_CONT`
-- Can query Polars/Pandas DataFrames directly
+- Can query Polars/pandas DataFrames directly
 - Result has `.value` attribute containing DataFrame
 
-**Visualizations** ’ See saturdata.md "Visualization Patterns" (lines 499-558)
+**Visualizations** ï¿½ See saturdata.md "Visualization Patterns" (lines 499-558)
 - Seaborn for statistical/publication-quality plots
 - Plotly for interactive web visualizations
-- Convert Polars to Pandas for Seaborn/Plotly compatibility
+- Convert Polars to pandas for Seaborn/Plotly compatibility
 
 ## Quick Reference Guide
 
 ### Educational Content References
 
 **Tone and Style**:
-- Conversational approach ’ `style.md` lines 50-68
-- Progressive difficulty levels ’ `style.md` lines 13-31
-- Community engagement CTAs ’ `style.md` lines 83-100
-- Success metrics and engagement ’ `style.md` lines 95-100
+- Conversational approach ï¿½ `style.md` lines 50-68
+- Progressive difficulty levels ï¿½ `style.md` lines 13-31
+- Community engagement CTAs ï¿½ `style.md` lines 83-100
+- Success metrics and engagement ï¿½ `style.md` lines 95-100
 
 **Content Structure**:
-- Opening hook section ’ `style.md` lines 6-13
-- Concept playground (3 levels) ’ `style.md` lines 14-31
-- Real-world scenarios ’ `style.md` lines 32-36
-- Discovery bonuses ’ `style.md` lines 37-41
-- Final checklist ’ `style.md` lines 101-111
+- Opening hook section ï¿½ `style.md` lines 6-13
+- Concept playground (3 levels) ï¿½ `style.md` lines 14-31
+- Real-world scenarios ï¿½ `style.md` lines 32-36
+- Discovery bonuses ï¿½ `style.md` lines 37-41
+- Final checklist ï¿½ `style.md` lines 101-111
 
 ### Technical Pattern References
 
 **Marimo Notebook Patterns**:
-- Standard cell structure ’ `saturdata.md` lines 88-191
-- File path handling (absolute paths) ’ `saturdata.md` lines 192-220
-- DuckDB integration with `mo.sql()` ’ `saturdata.md` lines 221-257
-- Interactive elements and tables ’ `saturdata.md` lines 258-279
+- Standard cell structure ï¿½ `saturdata.md` lines 88-191
+- File path handling (absolute paths) ï¿½ `saturdata.md` lines 192-220
+- DuckDB integration with `mo.sql()` ï¿½ `saturdata.md` lines 221-257
+- Interactive elements and tables ï¿½ `saturdata.md` lines 258-279
 
 **Data Handling**:
-- Dataset requirements ’ `saturdata.md` lines 280-289
-- Shared data assets (transactions, taxi data) ’ `saturdata.md` lines 290-309
-- Data loading patterns with validation ’ `saturdata.md` lines 310-348
+- Dataset requirements ï¿½ `saturdata.md` lines 280-289
+- Shared data assets (transactions, taxi data) ï¿½ `saturdata.md` lines 290-309
+- Data loading patterns with validation ï¿½ `saturdata.md` lines 310-348
 
 **Code Patterns**:
-- Benchmarking function ’ `saturdata.md` lines 349-414
-- Library conversions (Polars ” Pandas) ’ `saturdata.md` lines 415-451
-- SQL query patterns ’ `saturdata.md` lines 452-498
-- Visualization examples ’ `saturdata.md` lines 499-558
+- Benchmarking function ï¿½ `saturdata.md` lines 349-414
+- Library conversions (Polars ï¿½pandass) ï¿½ `saturdata.md` lines 415-451
+- SQL query patterns ï¿½ `saturdata.md` lines 452-498
+- Visualization examples ï¿½ `saturdata.md` lines 499-558
 
 **Advanced Topics**:
-- Performance optimization ’ `saturdata.md` lines 998-1057
-- DuckDB-specific guidelines ’ `saturdata.md` lines 1058-1130
-- DuckDB native functions reference ’ `saturdata.md` lines 1066-1093
+- Performance optimization ï¿½ `saturdata.md` lines 998-1057
+- DuckDB-specific guidelines ï¿½ `saturdata.md` lines 1058-1130
+- DuckDB native functions reference ï¿½ `saturdata.md` lines 1066-1093
 
 ### Common Task References
 
 **Creating New Notebooks**:
-- Complete workflow ’ `saturdata.md` lines 559-715
-- Educational structure integration ’ `style.md` lines 6-46
-- Code scaffolding for progressive levels ’ `saturdata.md` lines 644-708
+- Complete workflow ï¿½ `saturdata.md` lines 559-715
+- Educational structure integration ï¿½ `style.md` lines 6-46
+- Code scaffolding for progressive levels ï¿½ `saturdata.md` lines 644-708
 
 **Improving Existing Notebooks**:
-- Discovery and verification workflow ’ `saturdata.md` lines 716-771
-- DuckDB accuracy verification ’ `saturdata.md` lines 858-960
-- Context7 MCP usage for documentation ’ `saturdata.md` lines 732-747
+- Discovery and verification workflow ï¿½ `saturdata.md` lines 716-771
+- DuckDB accuracy verification ï¿½ `saturdata.md` lines 858-960
+- Context7 MCP usage for documentation ï¿½ `saturdata.md` lines 732-747
 
 **Working with Data**:
-- Data discovery and path setup ’ `saturdata.md` lines 772-857
-- Schema documentation patterns ’ `saturdata.md` lines 808-834
-- Validation approaches ’ `saturdata.md` lines 836-851
+- Data discovery and path setup ï¿½ `saturdata.md` lines 772-857
+- Schema documentation patterns ï¿½ `saturdata.md` lines 808-834
+- Validation approaches ï¿½ `saturdata.md` lines 836-851
 
 ## Essential Task Templates
 

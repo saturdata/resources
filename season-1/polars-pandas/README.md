@@ -6,7 +6,7 @@ Welcome to Episode 1 of Saturdata Season 1! This interactive learning environmen
 
 ### Core Topics Covered
 
-- **Pandas Baseline**: Understanding traditional DataFrame operations and their limitations
+- **pandas Baseline**: Understanding traditional DataFrame operations and their limitations
 - **PyArrow Integration**: Quick performance wins with minimal code changes
 - **Polars**: Modern parallel processing engine with lazy evaluation
 - **DuckDB**: SQL interface for in-memory analytics
@@ -15,7 +15,7 @@ Welcome to Episode 1 of Saturdata Season 1! This interactive learning environmen
 
 ### Key Concepts
 
-1. **Performance Optimization**: 20-30x speedups over baseline Pandas
+1. **Performance Optimization**: 20-30x speedups over baseline pandas
 2. **Memory Efficiency**: Columnar storage and optimization techniques
 3. **API Design**: Expression-based vs procedural approaches
 4. **Lazy Evaluation**: Query optimization before execution
@@ -155,7 +155,7 @@ The notebook provides:
 
 - **Executable code cells** with real-time performance metrics
 - **Interactive visualizations** comparing library performance
-- **Progressive complexity** from baseline Pandas to modern tools
+- **Progressive complexity** from baseline pandas to modern tools
 - **Detailed explanations** of why performance differs
 
 **Recommended workflow:**
@@ -173,7 +173,7 @@ Use `overview.md` as a comprehensive reference:
 - Detailed explanations of each library's architecture
 - Performance characteristics and trade-offs
 - Code examples with annotations
-- Migration guides (Pandas → Polars, SQL → DuckDB)
+- Migration guides (pandas → Polars, SQL → DuckDB)
 - Production deployment best practices
 
 ### Option 3: Quick Start Guide
@@ -183,7 +183,7 @@ For experienced users who want quick insights:
 1. **Run all benchmarks**: Execute the notebook start to finish
 2. **Review scoreboard**: See the final performance comparison table
 3. **Read decision framework**: Understand when to use each tool
-4. **Try one migration**: Rewrite a Pandas script in Polars
+4. **Try one migration**: Rewrite a pandas script in Polars
 
 ## 📊 Benchmark Operations
 
@@ -219,8 +219,8 @@ Based on our testing (Apple M1, 16GB RAM):
 
 | Library          | Time (seconds) | Memory (MB) | Speedup         |
 | ---------------- | -------------- | ----------- | --------------- |
-| Classic Pandas   | 45-60s         | ~2,400 MB   | 1.0x (baseline) |
-| Pandas + PyArrow | 18-25s         | ~1,800 MB   | 2.4x            |
+| Classic pandas   | 45-60s         | ~2,400 MB   | 1.0x (baseline) |
+| pandas + PyArrow | 18-25s         | ~1,800 MB   | 2.4x            |
 | **Polars** 🚀    | **2-3s**       | **~600 MB** | **23x**         |
 | **DuckDB** 🐥    | **2-4s**       | **~450 MB** | **21x**         |
 
@@ -231,7 +231,7 @@ _Note: Results vary based on CPU cores, RAM, and disk speed._
 ### Week 1: Quick Wins
 
 - ✅ Run all benchmarks and understand baseline performance
-- ✅ Add PyArrow backend to your existing Pandas code
+- ✅ Add PyArrow backend to your existing pandas code
 - ✅ Measure improvements in your real workflows
 - ✅ Identify performance bottlenecks
 
@@ -239,7 +239,7 @@ _Note: Results vary based on CPU cores, RAM, and disk speed._
 
 - ✅ Study Polars expression API and lazy evaluation
 - ✅ Practice DuckDB SQL queries on sample data
-- ✅ Rewrite one slow Pandas script in Polars
+- ✅ Rewrite one slow pandas script in Polars
 - ✅ Compare code readability and performance
 
 ### Month 2: Production Migration
@@ -335,7 +335,7 @@ uv pip install "pandas>=2.0.0" "pyarrow>=12.0.0"
 - [Marimo](https://docs.marimo.io/) - Reactive Python notebooks
 - [Polars User Guide](https://pola-rs.github.io/polars-book/) - Comprehensive Polars documentation
 - [DuckDB Documentation](https://duckdb.org/docs/) - SQL reference and guides
-- [Pandas PyArrow](https://pandas.pydata.org/docs/user_guide/pyarrow.html) - Integration guide
+- [pandas PyArrow](https://pandas.pydata.org/docs/user_guide/pyarrow.html) - Integration guide
 
 ### Performance Benchmarks
 
@@ -350,7 +350,7 @@ uv pip install "pandas>=2.0.0" "pyarrow>=12.0.0"
 
 ### Blog Posts & Tutorials
 
-- "Pandas 2.0 and PyArrow: Better, Faster, Stronger" - Official Pandas blog
+- "pandas 2.0 and PyArrow: Better, Faster, Stronger" - Official pandas blog
 - "Why Polars uses 5x less memory" - Polars blog
 - "DuckDB: The SQLite for Analytics" - DuckDB blog
 
@@ -372,7 +372,7 @@ uv pip install "pandas>=2.0.0" "pyarrow>=12.0.0"
 
 ### Production Deployment
 
-1. **Test thoroughly**: Verify results match Pandas output
+1. **Test thoroughly**: Verify results match pandas output
 2. **Monitor performance**: Set up alerts for regressions
 3. **Version control**: Pin exact library versions
 4. **Document**: Create runbooks for operations team

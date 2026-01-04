@@ -8,8 +8,8 @@ A deep dive into Python data processing libraries with performance optimization 
 
 1. [Introduction](#introduction)
 2. [Library Architecture Comparison](#library-architecture-comparison)
-3. [Pandas: The Classic Workhorse](#pandas-the-classic-workhorse)
-4. [Pandas + PyArrow: The Quick Win](#pandas--pyarrow-the-quick-win)
+3. [pandas: The Classic Workhorse](#pandas-the-classic-workhorse)
+4. [pandas + PyArrow: The Quick Win](#pandas--pyarrow-the-quick-win)
 5. [Polars: The Modern Engine](#polars-the-modern-engine)
 6. [DuckDB: SQL for Analytics](#duckdb-sql-for-analytics)
 7. [Performance Characteristics](#performance-characteristics)
@@ -23,7 +23,7 @@ A deep dive into Python data processing libraries with performance optimization 
 
 ### The Performance Problem
 
-Traditional Pandas, while beloved by data scientists, faces several architectural limitations:
+Traditional pandas, while beloved by data scientists, faces several architectural limitations:
 
 - **Single-threaded execution**: Doesn't utilize multiple CPU cores
 - **Eager evaluation**: Executes operations immediately without optimization
@@ -51,7 +51,7 @@ New-generation tools solve these problems through:
 3. Multi-column aggregation (GROUP BY + multiple functions)
 4. Join transactions with customer dimension
 
-**Result**: 20-30x speedup with modern tools vs baseline Pandas
+**Result**: 20-30x speedup with modern tools vs baseline pandas
 
 ---
 
@@ -59,7 +59,7 @@ New-generation tools solve these problems through:
 
 ### Execution Models
 
-| Feature | Pandas | Pandas+PyArrow | Polars | DuckDB |
+| Feature | pandas | pandas+PyArrow | Polars | DuckDB |
 |---------|--------|----------------|--------|--------|
 | **Parallelization** | Single-threaded | Limited | Full multi-core | Full multi-core |
 | **Evaluation** | Eager | Eager | Lazy + Eager | Lazy (SQL) |
@@ -70,7 +70,7 @@ New-generation tools solve these problems through:
 
 ### Memory Layouts
 
-**Row-Based (Pandas Classic)**:
+**Row-Based (pandas Classic)**:
 ```
 Row 1: [id=1, name="Alice", age=30, revenue=100.50]
 Row 2: [id=2, name="Bob", age=25, revenue=200.75]
@@ -93,7 +93,7 @@ Column revenue: [100.50, 200.75, ...]
 
 | Library | Core Engine | Language |
 |---------|-------------|----------|
-| Pandas | NumPy + Python | Python/C |
+| pandas | NumPy + Python | Python/C |
 | PyArrow | Apache Arrow | C++ |
 | Polars | DataFusion | Rust |
 | DuckDB | Custom engine | C++ |
@@ -106,11 +106,11 @@ Column revenue: [100.50, 200.75, ...]
 
 ---
 
-## Pandas: The Classic Workhorse
+## pandas: The Classic Workhorse
 
 ### Architecture
 
-Pandas is built on top of NumPy arrays with Python object wrappers, providing:
+pandas is built on top of NumPy arrays with Python object wrappers, providing:
 - Labeled data structures (DataFrame, Series)
 - Rich functionality for data manipulation
 - Excellent integration with Python ecosystem
@@ -183,7 +183,7 @@ merged = transactions.merge(
 
 ---
 
-## Pandas + PyArrow: The Quick Win
+## pandas + PyArrow: The Quick Win
 
 ### What is PyArrow?
 
@@ -197,7 +197,7 @@ Apache Arrow is a cross-language columnar memory format. PyArrow provides Python
 
 **Minimal code change**:
 ```python
-# Before (classic Pandas)
+# Before (classic pandas)
 df = pd.read_csv('data.csv')
 
 # After (with PyArrow backend)
@@ -206,14 +206,14 @@ df = pd.read_csv('data.csv', engine='pyarrow', dtype_backend='pyarrow')
 
 ### Under the Hood
 
-**Classic Pandas**:
+**Classic pandas**:
 ```
-CSV → Python objects → NumPy arrays → Pandas DataFrame
+CSV → Python objects → NumPy arrays → pandas DataFrame
 ```
 
-**Pandas + PyArrow**:
+**pandas + PyArrow**:
 ```
-CSV → Arrow arrays → Pandas DataFrame (Arrow-backed)
+CSV → Arrow arrays → pandas DataFrame (Arrow-backed)
 ```
 
 Benefits:
@@ -224,7 +224,7 @@ Benefits:
 ### Compatibility Notes
 
 **What Works**:
-- Most Pandas operations
+- Most pandas operations
 - Reading/writing CSV, Parquet
 - Basic aggregations
 
@@ -253,7 +253,7 @@ Typical improvements:
 ### When to Use
 
 ✅ **Good fit**:
-- Existing Pandas codebases
+- Existing pandas codebases
 - Can't justify full rewrite
 - Want quick wins with minimal risk
 - Team needs time to learn new tools
@@ -424,13 +424,13 @@ pl.Config.set_global_poolsize(8)
 ### Performance Characteristics
 
 **Strengths**:
-- 20-30x faster than Pandas on large datasets
+- 20-30x faster than pandas on large datasets
 - Excellent memory efficiency
 - Automatic query optimization
 - Clean, expressive API
 
 **Trade-offs**:
-- Smaller ecosystem than Pandas
+- Smaller ecosystem than pandas
 - Some features still under development
 - Learning curve for expression API
 - Limited support for nested data structures
@@ -446,7 +446,7 @@ pl.Config.set_global_poolsize(8)
 
 ❌ **Maybe not**:
 - Very small datasets (<10K rows)
-- Heavy use of Pandas-specific features
+- Heavy use of pandas-specific features
 - Need maximum ecosystem compatibility
 - Team resistant to learning new tools
 
@@ -579,9 +579,9 @@ con.execute("""
 """)
 ```
 
-#### Integration with Pandas/Polars
+#### Integration with pandas/Polars
 ```python
-# Query Pandas DataFrame directly
+# Query pandas DataFrame directly
 import pandas as pd
 df = pd.read_csv('data.csv')
 
@@ -603,7 +603,7 @@ result = con.execute("""
 ### Performance Characteristics
 
 **Strengths**:
-- 20-30x faster than Pandas
+- 20-30x faster than pandas
 - Excellent for complex analytical queries
 - Familiar SQL syntax
 - Great Parquet integration
@@ -638,7 +638,7 @@ result = con.execute("""
 
 Our test (5M rows, 1GB data, M1 MacBook Pro 16GB RAM):
 
-| Operation | Pandas | Pandas+PyArrow | Polars | DuckDB |
+| Operation | pandas | pandas+PyArrow | Polars | DuckDB |
 |-----------|--------|----------------|--------|--------|
 | **CSV Read** | 12.5s | 5.2s | 1.8s | 2.1s |
 | **String Ops** | 18.3s | 7.8s | 0.9s | 1.2s |
@@ -652,7 +652,7 @@ Our test (5M rows, 1GB data, M1 MacBook Pro 16GB RAM):
 
 **Dataset Size vs Performance**:
 
-| Rows | Pandas | Polars | DuckDB |
+| Rows | pandas | Polars | DuckDB |
 |------|--------|--------|--------|
 | 100K | 1.2s | 0.3s | 0.4s |
 | 1M | 11.5s | 1.1s | 1.3s |
@@ -661,7 +661,7 @@ Our test (5M rows, 1GB data, M1 MacBook Pro 16GB RAM):
 | 50M | OOM | 48s | 58s |
 
 **Key Insights**:
-- Pandas hits memory limits around 20-30M rows
+- pandas hits memory limits around 20-30M rows
 - Polars/DuckDB scale linearly with data size
 - Larger datasets → bigger performance gap
 
@@ -669,8 +669,8 @@ Our test (5M rows, 1GB data, M1 MacBook Pro 16GB RAM):
 
 | Library | Single Core | Multi-Core | Efficiency |
 |---------|-------------|------------|------------|
-| Pandas | 100% | ~105% | Single-threaded |
-| Pandas+PyArrow | 100% | ~120% | Limited parallelism |
+| pandas | 100% | ~105% | Single-threaded |
+| pandas+PyArrow | 100% | ~120% | Limited parallelism |
 | Polars | 100% | ~750% | Excellent (8 cores) |
 | DuckDB | 100% | ~720% | Excellent (8 cores) |
 
@@ -678,11 +678,11 @@ Our test (5M rows, 1GB data, M1 MacBook Pro 16GB RAM):
 
 ## Migration Guides
 
-### Pandas → Polars
+### pandas → Polars
 
 #### Basic Operations
 ```python
-# Pandas
+# pandas
 df = pd.read_csv('data.csv')
 df['new_col'] = df['old_col'] * 2
 filtered = df[df['value'] > 100]
@@ -697,7 +697,7 @@ result = df.group_by('category').agg(pl.sum('revenue'))
 
 #### Method Chaining Pattern
 ```python
-# Pandas: Often requires multiple statements
+# pandas: Often requires multiple statements
 df = pd.read_csv('data.csv')
 df = df[df['revenue'] > 0]
 df['log_revenue'] = np.log(df['revenue'])
@@ -717,7 +717,7 @@ result = (
 
 **1. Column Selection**
 ```python
-# Pandas: Multiple ways
+# pandas: Multiple ways
 df['col']           # Returns Series
 df[['col']]        # Returns DataFrame
 df.col             # Attribute access
@@ -730,7 +730,7 @@ df['col']          # Returns Series
 
 **2. In-Place Operations**
 ```python
-# Pandas: In-place modification
+# pandas: In-place modification
 df['new_col'] = values
 df.drop('col', axis=1, inplace=True)
 
@@ -741,7 +741,7 @@ df = df.drop('col')
 
 **3. Index Handling**
 ```python
-# Pandas: Rich index support
+# pandas: Rich index support
 df = df.set_index('date')
 df.loc['2024-01-01']
 
@@ -779,7 +779,7 @@ SELECT * FROM 'data.parquet';
 SELECT * FROM read_json_auto('data.json');
 ```
 
-**Query Pandas/Polars DataFrames**:
+**Query pandas/Polars DataFrames**:
 ```sql
 -- Query Python objects directly
 SELECT * FROM my_pandas_df WHERE value > 100;
@@ -797,14 +797,14 @@ SELECT * FROM my_pandas_df WHERE value > 100;
 Start here
     │
     ├─ Dataset < 100K rows?
-    │   └─ Use Pandas (simplicity wins)
+    │   └─ Use pandas (simplicity wins)
     │
     ├─ Team is SQL-native?
     │   └─ Use DuckDB
     │
-    ├─ Need Pandas compatibility?
+    ├─ Need pandas compatibility?
     │   ├─ Can't rewrite code?
-    │   │   └─ Use Pandas + PyArrow (quick win)
+    │   │   └─ Use pandas + PyArrow (quick win)
     │   └─ Can invest in migration?
     │       └─ Use Polars (long-term performance)
     │
@@ -821,7 +821,7 @@ Start here
 3. **Batch Operations**: Process data in chunks when possible
 4. **Leverage Laziness**: Use lazy evaluation (Polars/DuckDB) to optimize queries
 
-#### Pandas Optimization
+#### pandas Optimization
 
 ```python
 # ❌ Slow: .apply() with lambda
@@ -981,7 +981,7 @@ def test_pipeline_performance():
 - [ ] Document expected runtimes and memory usage
 - [ ] Create runbooks for operations team
 - [ ] Test failure scenarios and recovery
-- [ ] Validate output correctness vs Pandas baseline
+- [ ] Validate output correctness vs pandas baseline
 - [ ] Set up logging for debugging
 - [ ] Configure thread counts for production environment
 
@@ -993,13 +993,13 @@ def test_pipeline_performance():
 
 | Scenario | Recommended Tool | Rationale |
 |----------|------------------|-----------|
-| Exploratory analysis | Pandas | Rich features, familiar |
-| Small data (<100K rows) | Pandas | Simple, no overhead |
-| Existing Pandas codebase | Pandas + PyArrow | Easy win, 2-3x speedup |
+| Exploratory analysis | pandas | Rich features, familiar |
+| Small data (<100K rows) | pandas | Simple, no overhead |
+| Existing pandas codebase | pandas + PyArrow | Easy win, 2-3x speedup |
 | New project, large data | Polars | Best performance, modern API |
 | SQL-native team | DuckDB | Familiar syntax, excellent performance |
 | Production pipelines | Polars or DuckDB | Performance, reliability |
-| Interactive dashboards | Pandas + PyArrow | Balance of speed and compatibility |
+| Interactive dashboards | pandas + PyArrow | Balance of speed and compatibility |
 | Batch ETL jobs | Polars | Maximum throughput |
 | Ad-hoc analytics | DuckDB | SQL expressiveness |
 | Path to Snowflake | DuckDB | Direct syntax translation |
@@ -1007,7 +1007,7 @@ def test_pipeline_performance():
 
 ### Cost-Benefit Analysis
 
-#### Pandas → Pandas + PyArrow
+#### pandas → pandas + PyArrow
 
 **Effort**: ⭐ (1/5)
 - Change 1-2 lines of code
@@ -1022,7 +1022,7 @@ def test_pipeline_performance():
 
 ---
 
-#### Pandas → Polars
+#### pandas → Polars
 
 **Effort**: ⭐⭐⭐⭐ (4/5)
 - Rewrite codebase
@@ -1038,7 +1038,7 @@ def test_pipeline_performance():
 
 ---
 
-#### Pandas → DuckDB
+#### pandas → DuckDB
 
 **Effort**: ⭐⭐⭐ (3/5)
 - Translate to SQL
@@ -1058,7 +1058,7 @@ def test_pipeline_performance():
 
 **Example**: Daily ETL pipeline on AWS
 
-**Before (Pandas)**:
+**Before (pandas)**:
 - Runtime: 60 minutes
 - Instance: m5.4xlarge (16 vCPU, 64GB RAM)
 - Cost: $0.768/hour
@@ -1082,7 +1082,7 @@ For 10 pipelines: **$228/month savings** = **$2,736/year**
 
 ### Key Takeaways
 
-1. **Modern tools are 20-30x faster** than baseline Pandas
+1. **Modern tools are 20-30x faster** than baseline pandas
 2. **PyArrow backend is the quickest win** (2-3x speedup, 1-line change)
 3. **Polars excels for Python-native teams** building production pipelines
 4. **DuckDB is perfect for SQL-native analysts** and paths to cloud warehouses
@@ -1091,7 +1091,7 @@ For 10 pipelines: **$228/month savings** = **$2,736/year**
 ### Next Steps
 
 1. **Try it yourself**: Run the benchmarks with your own data
-2. **Pick one script**: Identify a slow Pandas script in your workflow
+2. **Pick one script**: Identify a slow pandas script in your workflow
 3. **Start small**: Add PyArrow backend as a quick win
 4. **Experiment**: Rewrite a hot path in Polars or DuckDB
 5. **Measure impact**: Track time and memory improvements

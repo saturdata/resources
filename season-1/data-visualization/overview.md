@@ -14,7 +14,7 @@ Remember when you spent hours making a matplotlib chart that looked "fine" and t
 
 **Why `sns.set()` Changes Everything**: That one line doesn't just style seaborn plots, it transforms *all* matplotlib plots. Colors become professional. Fonts become readable. Grids become subtle.
 
-**The Pandas Integration Secret**: Seaborn works best with pandas DataFrames. That's not a limitation—it's a feature. When your plotting library understands dataframes, you can go from "I have data" to "I have insights" without the intermediate "I have to reshape everything" step.
+**The pandas Integration Secret**: Seaborn works best with pandas DataFrames. That's not a limitation—it's a feature. When your plotting library understands dataframes, you can go from "I have data" to "I have insights" without the intermediate "I have to reshape everything" step.
 
 ## Essential Plot Types: Choosing Your Weapon
 
@@ -48,9 +48,9 @@ Remember when you spent hours making a matplotlib chart that looked "fine" and t
 
 **Simple vs. Complex**: That multi-panel layout with 12 subplots? Impressive, but did anyone actually understand it? Sometimes one clear scatter plot beats a complex dashboard. The key is knowing your audience. Data professionals should get more depth and complexity. Executives should get instant clarity. Same data, different presentation.
 
-## The Polars-to-Pandas Workflow: Best of Both Worlds
+## The Polars-to-pandas Workflow: Best of Both Worlds
 
-**Why Seaborn Works Best with Pandas**: Seaborn was built for pandas. That's not a bug—it's a design choice. Pandas DataFrames are what seaborn understands natively. Fighting this is like using a Phillips head screwdriver on a flat-head screw. It might work, but why?
+**Why Seaborn Works Best with pandas**: Seaborn was built for pandas. That's not a bug—it's a design choice. pandas DataFrames are what seaborn understands natively. Fighting this is like using a Phillips head screwdriver on a flat-head screw. It might work, but why?
 
 **The Efficient Conversion Strategy**: Process in Polars for speed. Convert to pandas for visualization. Convert strategically, not constantly. Do your transformations in Polars, get your final result, then convert once for plotting. Don't ping-pong between libraries—that's just overhead.
 
@@ -59,7 +59,7 @@ Remember when you spent hours making a matplotlib chart that looked "fine" and t
 **When to Stay in Polars vs. Convert**:
 
 - **Stay in Polars**: When you're still exploring and transforming. Speed matters during development.
-- **Convert to Pandas**: When you're visualizing. Seaborn's integration is worth the conversion cost for the final output.
+- **Convert to pandas**: When you're visualizing. Seaborn's integration is worth the conversion cost for the final output.
 
 ## Common Visualization Pitfalls: The Mistakes We All Make
 
