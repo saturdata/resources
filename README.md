@@ -48,3 +48,5 @@ To edit your local copy of the notebook, run:
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
+Thanks for your contribution :)
